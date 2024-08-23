@@ -17,6 +17,7 @@ class MongoDataBase {
   static Db? db;
   static DbCollection? userCollection;
   static DbCollection? blurryCollection;
+  static DbCollection? proyectCollection;
   static String?
       email_; //No estoy seguro si poner esto aca o en el SharedPreferences,
   //por lo que un usuario puede tener maximo 5 cuentas
@@ -48,7 +49,11 @@ class MongoDataBase {
 
     try {
       await dotenv.load();
-      db ??= await Db.create(dotenv.env['MONGO_CONN_URL']!);
+      db ??= await Db.create(dotenv.env['MONGO_CONN_URL_ATLAS_PUBLIC']!);
+      if (kDebugMode) {
+        print(
+            "Base de datos conectada con ${dotenv.env['MONGO_CONN_URL_ATLAS_PUBLIC']}");
+      }
       if (!db!.isConnected) {
         await db!.open();
         print("Base de datos abierta y conectada");
@@ -56,6 +61,7 @@ class MongoDataBase {
 
       userCollection = db!.collection(dotenv.env['USER_COLLECTION']!);
       blurryCollection = db!.collection(dotenv.env['BLURRY_COLLECTION']!);
+      proyectCollection = db!.collection(dotenv.env['PROYECT_COLLECTION']!);
 
       if (userCollection != null) {
         print('Collection initialized successfully.');
@@ -117,17 +123,16 @@ class MongoDataBase {
       if (db.isConnected) {
         print("base de datos abierta {getData}");
       }
-      userCollection = db.collection(dotenv.env['USER_COLLECTION']!);
 
-      if (userCollection != null) {
+      if (proyectCollection != null) {
         print('Coleccion obtenida e iniciada.');
       } else {
         print('Fallo al obtener la coleccion.');
       }
-      if (userCollection == null) {
+      if (proyectCollection == null) {
         throw Exception('Collection is not initialized en el getData');
       }
-      final data = await userCollection!.find().toList();
+      final data = await proyectCollection!.find().toList();
 
       // Procesar las imágenes
       return data.map((doc) {
@@ -170,7 +175,7 @@ class MongoDataBase {
           print("Datos a insertar o verificar: $data");
         }
         if (selector) {
-          //              Registrando un nuevo usuario
+          //Registrando un nuevo usuario
           if (existingUser == null) {
             // Si no existe, inserta el nuevo usuario
             // await userCollection?.insertOne(data);
@@ -372,42 +377,147 @@ class MongoDataBase {
   }
 
   //Este sera un metodo para recibir de una coleccion las diferentes frases
-  static Future<String?> blurry() {
+  static Future<List<Map<String, dynamic>>?> blurry() {
     return execute((db) async {
       try {
-        if (blurryCollection != null) {
+        if (proyectCollection != null) {
           print('Coleccion obtenida e iniciada.');
         } else {
           print('Fallo al obtener la coleccion blurry.');
         }
-        if (blurryCollection == null) {
+        if (proyectCollection == null) {
           throw Exception('Collection is not initialized en el getData');
         }
-        final data = await blurryCollection!.find().toList();
+        final data = await proyectCollection!.find().toList();
 
         // Obtener un documento aleatorio
         final randomIndex = Random().nextInt(data.length);
         final randomDocument = data[randomIndex];
 
         // Obtener el array del documento aleatorio (cambia 'arrayField' al nombre real de tu campo de array)
-        final array = randomDocument['blurry'];
+        final elemento = randomDocument['Nombre'];
+        final elemento2 = randomDocument['ID'];
 
-        // Asegúrate de que el campo es un array y no está vacío
-        if (array is List && array.isNotEmpty) {
-          // Seleccionar un elemento aleatorio del array
-          final randomElementIndex = Random().nextInt(array.length);
-          final randomElement = array[randomElementIndex];
-
-          print('Elemento aleatorio del array: $randomElement');
-          return randomElement;
-        } else {
-          print('El campo no es un array o está vacío.');
-          return null;
-        }
+        Set<Map<String, dynamic>> data2 = {
+          {
+            "Nombre": elemento,
+            "ID": elemento2,
+          }
+        };
+        return data2.toList();
       } catch (e) {
         print("El error fue: $e");
         return null;
       }
     });
+  }
+
+  static Future<Map<String, dynamic>> collectionProyectInformation(int id) {
+    return execute((db) async {
+      try {
+        if (proyectCollection == null) {
+          throw Exception(
+              'La colección no está inicializada en buscarProyectoPorId');
+        }
+
+        final query = where.eq('ID', id);
+        final proyecto = await proyectCollection!.findOne(query);
+
+        if (proyecto == null) {
+          print('No se encontró ningún proyecto con el ID: $id');
+          return {};
+        }
+
+        return {
+          "Nombre": proyecto['Nombre'] as String? ?? '',
+          "ID": proyecto['ID'] as int? ?? 0,
+          "Descripción": proyecto['Descripción'] as String? ?? '',
+          "Tipo de Aplicación": proyecto['Tipo de Aplicación'] as String? ?? '',
+          "Área": proyecto['Área'] as String? ?? '',
+          "Objetivos": proyecto['Objetivos'] as String? ?? '',
+          "Especialidades Requeridas":
+              proyecto['Especialidades Requeridas'] as String? ?? '',
+          "Estado": proyecto['Estado'] as String? ?? '',
+          "Tiempo de Desarrollo":
+              proyecto['Tiempo de Desarrollo'] as String? ?? '',
+        };
+      } catch (e) {
+        print("Error al buscar el proyecto: $e");
+        return {};
+      }
+    });
+  }
+
+  static Future<bool> submitForm(String email, int proyectId) {
+    return execute((db) async {
+      try {
+        final userQuery = where.eq('email', email);
+        final user = await userCollection!.findOne(userQuery);
+        if (user == null) {
+          throw Exception('El usuario no existe');
+        }
+
+        final projectQuery = where.eq('ID', proyectId);
+        final project = await proyectCollection!.findOne(projectQuery);
+        if (project == null) {
+          throw Exception('El proyecto no existe');
+        }
+
+        // Check if user already has this project
+        final List<dynamic> userProjects = user['proyectos'] ?? [];
+        if (userProjects.contains(proyectId)) {
+          print("El usuario ya está en este proyecto");
+          return false;
+        }
+
+        // Check if project is already at capacity
+        final int integrantes = project['Integrantes'] ?? 0;
+        final int dispuestos = project['Dispuestos'] ?? 0;
+        if (dispuestos >= integrantes) {
+          print("El proyecto ya está lleno");
+          return false;
+        }
+
+        // Update user
+        await userCollection!.updateOne(
+            userQuery, modify.set('proyectos', [...userProjects, proyectId]));
+
+        // Update project
+        final List<dynamic> projectParticipants =
+            project['Participantes'] ?? [];
+        await proyectCollection!.updateOne(
+            projectQuery,
+            modify.set('Participantes', [...projectParticipants, email]).inc(
+                'Dispuestos', 1));
+
+        print("Formulario enviado con éxito");
+        return true;
+      } catch (e) {
+        print("El error fue: $e");
+        return false;
+      }
+    });
+  }
+
+  static Future<List<dynamic>> getProyectList(String email) async {
+    return execute(
+      (db) async {
+        try {
+          final query = where.eq('email', email);
+          final user = await userCollection!.findOne(query);
+
+          if (user == null) {
+            throw Exception('Usuario no encontrado');
+          }
+
+          final proyectos = user['proyectos'] ?? [];
+
+          return proyectos;
+        } catch (e) {
+          print('Error en getProyectList: $e');
+          return [];
+        }
+      },
+    );
   }
 }

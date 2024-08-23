@@ -85,128 +85,123 @@ class LoginFormState extends State<LoginForm> {
 
   void _submitForm(bool a) async {
     if (_formKey.currentState!.validate()) {
-      SharedPreferences pref = await SharedPreferences.getInstance();
-      //VERIFICANDO QUE NO SE HAYA INICIADO SESION CON ESTA CUENTA
-      if (_emailController.text == pref.getString('email')) {
-        if (pref.getStringList('EmailList') != null) {
-          if (kDebugMode) {
-            print("Entrando al if(pref.getStringList('EmailList') != null)");
-          }
+      try {
+        SharedPreferences pref = await SharedPreferences.getInstance();
+        //CASO EN EL QUE EL USUARIO ESTE ENTRANDO CON SU MISMA CUENTA
+        if (_emailController.text == pref.getString('email')) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Ya estas iniciado sesion con esta cuenta')),
+          );
+          Navigator.maybePop(context);
+        } else if (pref.getStringList('EmailList')!.isNotEmpty &&
+            pref.getStringList('EmailList')!.contains(_emailController.text)) {
           if (kDebugMode) {
             print(
-                "${!pref.getStringList('EmailList')!.contains(_emailController.text)}");
+                'La lista de usuarios no es nula ${pref.getStringList('EmailList')}');
           }
-          if (kDebugMode) {
-            print("${pref.getStringList('EmailList')}");
-          }
-          if (kDebugMode) {
-            print(_emailController.text);
-          }
-          if (!pref
-              .getStringList('EmailList')!
-              .contains(_emailController.text)) {
-            List<String>? data = pref.getStringList('EmailList');
-            data!.add(_emailController.text);
-            pref.setStringList('EmailList', data);
-          }
-        } else {
-          if (kDebugMode) {
-            print("Entrando al if(pref.getStringList('EmailList') != null)");
-          }
-          List<String>? data = [];
-          data.add(_emailController.text);
-          pref.setStringList('EmailList', data);
-        }
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Ya estas iniciado sesion con esta cuenta')),
-        );
-        Navigator.maybePop(context);
-      } else if (pref
-              .getStringList('EmailList')!
-              .contains(_emailController.text) &&
-          pref.getString('email') != _emailController.text) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ya tenias esta cuenta en tu lista')),
-        );
-        Navigator.maybePop(context);
-      }
-      //SI NO ES EL CASO, PROSEGUIR
-      else {
-        Map<String, dynamic> data = {
-          "email": _emailController.text,
-          "password": _passwordController.text
-        };
-        if (kDebugMode) {
-          print(
-              "email: ${_emailController.text} \n password: ${_passwordController.text}");
-        }
-
-        bool success;
-        //REGISTRANDOSE
-        if (a) {
-          success = await MongoDataBase.sesion(data, a);
-
+          //SI LA LISTA DE USUARIOS NO ES NULA
           if (!mounted) return;
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Usuario registrado exitosamente')),
-            );
-            pref.setString('email', _emailController.text);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ya tenias esta cuenta en tu lista')),
+          );
+          Navigator.maybePop(context);
+        }
+        //SI NO ES EL CASO, PROSEGUIR
+        else {
+          Map<String, dynamic> data = {
+            "email": _emailController.text,
+            "password": _passwordController.text
+          };
+          if (kDebugMode) {
+            print(
+                "email: ${_emailController.text} \n password: ${_passwordController.text}");
+          }
+
+          bool success;
+          //REGISTRANDOSE
+          if (a) {
+            if (kDebugMode) {
+              print("Registrando");
+            }
+            success = await MongoDataBase.sesion(data, a);
+
             if (!mounted) return;
-            Navigator.of(context).pushReplacement(
-              PageRouteBuilder(
-                transitionDuration: const Duration(milliseconds: 600),
-                pageBuilder: (_, __, ___) => Userdata(),
-                transitionsBuilder: (_, animation, __, child) {
-                  return ScaleTransition(
-                    scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                      CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeInOutBack,
+            if (success) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Usuario registrado exitosamente')),
+              );
+              pref.setString('email', _emailController.text);
+              if (!mounted) return;
+              Navigator.of(context).pushReplacement(
+                PageRouteBuilder(
+                  transitionDuration: const Duration(milliseconds: 600),
+                  pageBuilder: (_, __, ___) => Userdata(),
+                  transitionsBuilder: (_, animation, __, child) {
+                    return ScaleTransition(
+                      scale: Tween<double>(begin: 0.0, end: 1.0).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeInOutBack,
+                        ),
                       ),
-                    ),
-                    child: child,
-                  );
-                },
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Correo ya registrado con otro usuario')),
-            );
+                      child: child,
+                    );
+                  },
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Correo ya registrado con otro usuario')),
+              );
+            }
+          }
+          //INICIANDO SESION
+          else if (a == false) {
+            success = await MongoDataBase.sesion(data, a);
+            if (success) {
+              MongoDataBase.email_ = _emailController.text;
+              //SHARED PREFERENCES
+              await pref.setBool('isLoggedIn', true);
+              await pref.setString('email', _emailController.text);
+              List<String> emailList = pref.getStringList('EmailList') ?? [];
+              emailList.add(_emailController.text);
+              await pref.setStringList('EmailList', emailList);
+              if (kDebugMode) {
+                print('La lista (EmailList) de correos es: $emailList');
+              }
+              //------------------------------------------------------------
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Iniciaste sesion')),
+              );
+              if (kDebugMode) print("Volviendo a Myhomepage.dart");
+              Navigator.maybePop(context);
+            } else {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Contraseña o correo invalido')),
+              );
+            }
           }
         }
-        //INICIANDO SESION
-        else if (a == false) {
-          success = await MongoDataBase.sesion(data, a);
-          if (success) {
-            MongoDataBase.email_ = _emailController.text;
-            //SHARED PREFERENCES
-            await pref.setBool('isLoggedIn', true);
-            await pref.setString('email', _emailController.text);
-            List<String>? emailList = pref.getStringList('EmailList');
-            emailList?.add(_emailController.text);
-            await pref.setStringList('EmailList', emailList!);
-            //------------------------------------------------------------
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Iniciaste sesion')),
-            );
-            if (kDebugMode) print("Volviendo a Myhomepage.dart");
-            Navigator.maybePop(context);
-          } else {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Contraseña o correo invalido')),
-            );
-          }
-        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
       }
+    } else {
+      if (kDebugMode) {
+        print('Algo esta mal');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Algo esta fallando')),
+      );
     }
   }
 
@@ -246,7 +241,7 @@ class LoginFormState extends State<LoginForm> {
               controller: _emailController,
               style: const TextStyle(
                 fontFamily: 'nuevo',
-                color: Colors.white,
+                color: AppColors.backgroundColor,
               ),
               decoration: const InputDecoration(
                 //---------------------------------------------------------------
@@ -271,7 +266,7 @@ class LoginFormState extends State<LoginForm> {
                 alignLabelWithHint: true,
                 labelStyle: TextStyle(
                   fontFamily: 'nuevo',
-                  color: Colors.white,
+                  color: AppColors.backgroundColor,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -294,7 +289,7 @@ class LoginFormState extends State<LoginForm> {
               controller: _passwordController,
               style: const TextStyle(
                 fontFamily: 'nuevo',
-                color: Colors.white,
+                color: AppColors.backgroundColor,
               ),
               decoration: const InputDecoration(
                 //---------------------------------------------------------------
@@ -319,7 +314,7 @@ class LoginFormState extends State<LoginForm> {
                 alignLabelWithHint: true,
                 labelStyle: TextStyle(
                   fontFamily: 'nuevo',
-                  color: Colors.white,
+                  color: AppColors.backgroundColor,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -342,7 +337,12 @@ class LoginFormState extends State<LoginForm> {
                     backgroundColor: WidgetStateProperty.all<Color>(
                         const Color.fromARGB(255, 43, 43, 43)),
                   ),
-                  onPressed: () => _submitForm(false),
+                  onPressed: () {
+                    _submitForm(false);
+                    if (kDebugMode) {
+                      print('Login button pressed');
+                    }
+                  },
                   child: const Text(
                     'Iniciar Sesión',
                     style: TextStyle(
@@ -358,7 +358,12 @@ class LoginFormState extends State<LoginForm> {
                     backgroundColor: WidgetStateProperty.all<Color>(
                         const Color.fromARGB(255, 43, 43, 43)),
                   ),
-                  onPressed: () => _submitForm(true),
+                  onPressed: () {
+                    _submitForm(true);
+                    if (kDebugMode) {
+                      print('Registred button pressed');
+                    }
+                  },
                   child: const Text(
                     'Registrarse',
                     style: TextStyle(

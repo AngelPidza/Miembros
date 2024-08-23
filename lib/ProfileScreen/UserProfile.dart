@@ -44,16 +44,18 @@ class _UserProfileState extends State<UserProfile> {
           DateTime now = DateTime.parse(data['now']);
           Duration tiempoDo = DateTime.now().difference(now);
           int antiquity = tiempoDo.inDays;
-          setState(() {
-            name = data['name'];
-            username = data['userName'];
-            age = ages;
-            creationDate = antiquity;
-            phone = data['phone'];
-            if (data['image'] != null) {
-              image = base64Decode(data['image']);
-            }
-          });
+          if (mounted) {
+            setState(() {
+              name = data['name'];
+              username = data['userName'];
+              age = ages;
+              creationDate = antiquity;
+              phone = data['phone'];
+              if (data['image'] != null) {
+                image = base64Decode(data['image']);
+              }
+            });
+          }
           if (kDebugMode) {
             print(
                 "name = ${data['name']}; \n username = ${data['userName']}; \n age = $ages; \n creationDate = $antiquity; \n phone = ${data['phone']};");
@@ -73,13 +75,18 @@ class _UserProfileState extends State<UserProfile> {
   Widget build(BuildContext context) {
     const estilo = TextStyle(
       fontFamily: 'nuevo',
-      color: AppColors.textSecondary,
+      color: AppColors.cardColor,
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Pefil del usuario',
-          style: estilo,
+        title: const Row(
+          children: [
+            Spacer(),
+            Text(
+              'Pefil del usuario',
+              style: estilo,
+            ),
+          ],
         ),
         leading: Padding(
           padding: const EdgeInsets.only(
@@ -103,7 +110,7 @@ class _UserProfileState extends State<UserProfile> {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor.withOpacity(0.2),
+                    color: AppColors.backgroundColor.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -111,8 +118,6 @@ class _UserProfileState extends State<UserProfile> {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 192, 163, 0)
-                              .withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -201,7 +206,7 @@ class _UserProfileState extends State<UserProfile> {
                                     constraints:
                                         const BoxConstraints(maxWidth: 240),
                                     child: Text(
-                                      'Age: $age esto contiene cosas su per pe que ñe as',
+                                      'Age: $age',
                                       style: estilo,
                                       softWrap: true,
                                       overflow: TextOverflow.visible,

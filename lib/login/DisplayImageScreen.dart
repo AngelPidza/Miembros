@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:miembros/MyHomePage.dart';
+import 'package:miembros/MainScreen/MyHomePage.dart';
 import 'dart:typed_data';
 
 import 'package:miembros/mongoDB/db.dart';

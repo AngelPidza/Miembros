@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:miembros/assets/style/AppColors.dart';
 import 'package:miembros/mongoDB/db.dart';
-import 'MyHomePage.dart';
+import 'MainScreen/MyHomePage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Blurry',
+      title: 'Prorandom',
       theme: ThemeData(
         appBarTheme: const AppBarTheme(
           elevation: 0,

@@ -5,7 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:miembros/assets/style/AppColors.dart';
-import 'package:miembros/DisplayImageScreen.dart';
+import 'package:miembros/login/DisplayImageScreen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Asegúrate de agregar intl en tu pubspec.yaml
 
 class Userdata extends StatelessWidget {
-  Userdata({super.key});
+  const Userdata({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +51,7 @@ class Userdata extends StatelessWidget {
         ),
       ),
       body: const Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(16.0),
         child: UserDataBody(),
       ),
     );
@@ -234,7 +234,7 @@ class UserDataBodyState extends State<UserDataBody> {
                   });
                 },
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.backgroundColor,
                   fontFamily: 'nuevo',
                   fontWeight: FontWeight.w300,
                 ),
@@ -243,7 +243,7 @@ class UserDataBodyState extends State<UserDataBody> {
                   alignLabelWithHint: true,
                   labelStyle: TextStyle(
                     fontFamily: 'nuevo',
-                    color: Color.fromARGB(255, 246, 245, 244),
+                    color: AppColors.backgroundColor,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -277,7 +277,7 @@ class UserDataBodyState extends State<UserDataBody> {
               TextFormField(
                 controller: _nameController,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.backgroundColor,
                   fontFamily: 'nuevo',
                   fontWeight: FontWeight.w300,
                 ),
@@ -286,7 +286,7 @@ class UserDataBodyState extends State<UserDataBody> {
                   alignLabelWithHint: true,
                   labelStyle: TextStyle(
                     fontFamily: 'nuevo',
-                    color: Color.fromARGB(255, 246, 245, 244),
+                    color: AppColors.backgroundColor,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -306,12 +306,12 @@ class UserDataBodyState extends State<UserDataBody> {
                   alignLabelWithHint: true,
                   labelStyle: TextStyle(
                     fontFamily: 'nuevo',
-                    color: Color.fromARGB(255, 246, 245, 244),
+                    color: AppColors.backgroundColor,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.backgroundColor,
                   fontFamily: 'nuevo',
                   fontWeight: FontWeight.w300,
                 ),
@@ -333,7 +333,7 @@ class UserDataBodyState extends State<UserDataBody> {
                   alignLabelWithHint: true,
                   labelStyle: TextStyle(
                     fontFamily: 'nuevo',
-                    color: Color.fromARGB(255, 246, 245, 244),
+                    color: AppColors.backgroundColor,
                     fontWeight: FontWeight.w700,
                   ),
                   suffixIcon: Padding(
@@ -346,7 +346,7 @@ class UserDataBodyState extends State<UserDataBody> {
                   ),
                 ),
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.backgroundColor,
                   fontFamily: 'nuevo',
                   fontWeight: FontWeight.w300,
                 ),

@@ -15,7 +15,8 @@ class SecondScreen extends StatelessWidget {
         ),
         leading: Padding(
           padding: const EdgeInsets.only(
-              left: 29.0), // Ajusta el valor según necesites
+            left: 29.0,
+          ), // Ajusta el valor según necesites
           child: IconButton(
             icon: const Icon(
               Icons.arrow_back,

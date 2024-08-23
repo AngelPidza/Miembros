@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:miembros/UserProfile.dart';
+import 'package:miembros/ProfileScreen/UserProfile.dart';
 import 'package:miembros/assets/style/AppColors.dart';
-import 'package:miembros/body.dart';
+import 'package:miembros/MainScreen/body.dart';
 import 'package:miembros/login/login.dart';
 import 'package:miembros/mongoDB/db.dart';
 import 'package:miembros/second_screen.dart';
@@ -29,6 +29,7 @@ class _MyhomepageState extends State<Myhomepage> {
   bool isLoggedIn = false;
   String userEmail = '';
   Uint8List? _userImageData;
+  int n = 0;
 
   double _scrollOffset = 0.0;
 //----------------------------
@@ -128,8 +129,8 @@ class _MyhomepageState extends State<Myhomepage> {
 //-----------------------------------------------------------
 
 //Funcion para traer un Blurry aleatorio
-  Future<String>? textBlurry() async {
-    String? data = await MongoDataBase.blurry();
+  Future<List<Map<String, dynamic>>?> textBlurry() async {
+    List<Map<String, dynamic>>? data = await MongoDataBase.blurry();
     if (kDebugMode) {
       print('data:  $data');
     }
@@ -138,19 +139,33 @@ class _MyhomepageState extends State<Myhomepage> {
 //-----------------------------------------------------
 
 //TIEMPO DE OPACIDAD DEL BOTON DERECHO INFERIOR
-  void _startTimer() {
+  Future<void> _startTimer() async {
     _timer?.cancel();
     setState(() {
-      _opacity = 1.0;
+      _opacity = 1;
     });
   }
 
-  void _resetOpacity() {
-    _timer = Timer(const Duration(seconds: 1), () {
-      setState(() {
-        _opacity = 0.5;
+  void _resetOpacity() async {
+    try {
+      SharedPreferences preferences = await SharedPreferences.getInstance();
+      var number =
+          await MongoDataBase.getProyectList(preferences.getString('email')!);
+      if (kDebugMode) {
+        print(
+            '${number.length} es el tamaño de la lista de proyectos del usuario');
+      }
+      _timer = Timer(const Duration(seconds: 1), () {
+        setState(() {
+          n = number.length;
+          _opacity = 0.5;
+        });
       });
-    });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al resetear la opacidad: $e');
+      }
+    }
   }
 //------------------------------------------------
 
@@ -210,47 +225,84 @@ class _MyhomepageState extends State<Myhomepage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      FutureBuilder<String>(
+                      FutureBuilder<List<Map<String, dynamic>>?>(
                         future: textBlurry(),
                         builder: (BuildContext context,
-                            AsyncSnapshot<String> snapshot) {
+                            AsyncSnapshot<List<Map<String, dynamic>>?>
+                                snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
                             return const Center(
-                                child: CircularProgressIndicator());
+                              child: CircularProgressIndicator(
+                                color: AppColors.secondaryColor,
+                              ),
+                            );
                           } else if (snapshot.hasError) {
                             return Center(
-                                child: Text('Error: ${snapshot.error}'));
+                              child: Text('Error: ${snapshot.error}'),
+                            );
+                          } else if (!snapshot.hasData ||
+                              snapshot.data!.isEmpty) {
+                            return const Center(
+                                child: Text('No data available'));
                           } else {
-                            return Center(
-                              child: Text(
-                                snapshot.data!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontFamily: 'nuevo',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 20,
-                                  color: AppColors.secondaryColor,
-                                  decoration: TextDecoration.none,
-                                ),
-                              ),
+                            return Column(
+                              children: snapshot.data!.map(
+                                (data) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0),
+                                    child: Column(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor:
+                                              AppColors.secondaryColor,
+                                          child: Text(
+                                            data['ID'].toString(),
+                                            style: const TextStyle(
+                                              fontFamily: 'nuevo',
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 20,
+                                              color: AppColors.onlyColor,
+                                              decoration: TextDecoration.none,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        Text(
+                                          data['Nombre'],
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontFamily: 'nuevo',
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 20,
+                                            color: AppColors.secondaryColor,
+                                            decoration: TextDecoration.none,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                AppColors.secondaryColor,
+                                          ),
+                                          child: const Text(
+                                            'Cerrar',
+                                            style: TextStyle(
+                                              color: AppColors.onlyColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ).toList(),
                             );
                           }
                         },
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors
-                              .secondaryColor, // Cambia este color al que prefieras
-                        ),
-                        child: const Text(
-                          'Cerrar',
-                          style: TextStyle(
-                            color: AppColors.onlyColor,
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -481,9 +533,13 @@ class _MyhomepageState extends State<Myhomepage> {
 //-----------------------------------------------------
 
 //Modal de los Emails para poder cambiar segun guardado en el SharePreferences
-  void emailsModal(BuildContext context) {
+  void emailsModal(BuildContext context) async {
     if (emailList.isEmpty) {
       if (kDebugMode) print("la lista está vacía");
+      SharedPreferences email = await SharedPreferences.getInstance();
+      email.getStringList('EmailList') != null
+          ? emailList = email.getStringList('EmailList')!
+          : null;
     } else {
       for (var data in emailList) {
         int count = 1;
@@ -527,7 +583,13 @@ class _MyhomepageState extends State<Myhomepage> {
             ),
             child: emailList.isEmpty
                 ? const Center(
-                    child: Text('No hay cuentas guardadas'),
+                    child: Text(
+                      'No hay cuentas guardadas',
+                      style: TextStyle(
+                        color: AppColors.onlyColor,
+                        fontFamily: 'nuevo',
+                      ),
+                    ),
                   )
                 : ListView.builder(
                     itemCount: emailList.length,
@@ -607,12 +669,6 @@ class _MyhomepageState extends State<Myhomepage> {
   }
 //-----------------------------------------------------
 
-  Future<void> open() async {
-    MongoDataBase.db!.isConnected
-        ? print('${MongoDataBase.db} \n db open')
-        : print('${MongoDataBase.db} \n db closed');
-  }
-
 //WIDGET PADRE------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
@@ -620,7 +676,7 @@ class _MyhomepageState extends State<Myhomepage> {
     double opacityButton = 1.0 - (_scrollOffset / 100);
     double appBarHeight = 200.0 - _scrollOffset;
     double titleFontSize = 30 + (_scrollOffset / 14);
-    double titlePositionRight = 170 - (_scrollOffset * 1.4);
+    double titlePositionRight = 124 - (_scrollOffset * 1.1);
     double titlePositionTop = 100 - (_scrollOffset / 1.6);
     //Variables
     const labelStyleFloatingActionButton = TextStyle(
@@ -628,6 +684,7 @@ class _MyhomepageState extends State<Myhomepage> {
       fontWeight: FontWeight.w700,
     );
     //Return...
+    var speedDialChildBackgroundColor = AppColors.secondaryColor;
     return Scaffold(
       extendBodyBehindAppBar: false,
       appBar: PreferredSize(
@@ -643,7 +700,7 @@ class _MyhomepageState extends State<Myhomepage> {
                   right: titlePositionRight,
                   top: titlePositionTop,
                   child: Text(
-                    'Blurry',
+                    'Prorandom',
                     style: TextStyle(
                       color: Colors.white,
                       fontFamily: 'nuevo',
@@ -696,8 +753,7 @@ class _MyhomepageState extends State<Myhomepage> {
                       : TextButton(
                           style: ButtonStyle(
                             backgroundColor: WidgetStateProperty.all<Color>(
-                                const Color.fromARGB(255, 0, 0, 0)
-                                    .withOpacity(0.2)),
+                                AppColors.onlyColor),
                             foregroundColor: WidgetStateProperty.all<Color>(
                                 AppColors.secondaryColor),
                             overlayColor:
@@ -721,6 +777,7 @@ class _MyhomepageState extends State<Myhomepage> {
                             ),
                           ),
                           onPressed: () {
+                            if (!mounted) return;
                             Navigator.push(
                               context,
                               PageRouteBuilder(
@@ -747,7 +804,10 @@ class _MyhomepageState extends State<Myhomepage> {
                           },
                           child: const Text(
                             'I/R sesión',
-                            style: TextStyle(color: AppColors.secondaryColor),
+                            style: TextStyle(
+                                color: AppColors.backgroundColor,
+                                fontFamily: 'nuevo',
+                                fontWeight: FontWeight.w600),
                           ),
                         ),
                 ),
@@ -791,15 +851,20 @@ class _MyhomepageState extends State<Myhomepage> {
           opacity: _opacity,
           duration: const Duration(milliseconds: 300),
           child: SpeedDial(
-            icon: Icons.view_stream,
+            child: _opacity == 0.5
+                ? Icon(Icons.view_stream)
+                : Text(
+                    '$n/3',
+                  ),
             activeIcon: Icons.close,
             overlayColor: Colors.black, // Color de la superposición
             overlayOpacity: 0.0, // Opacidad de la superposición
-            backgroundColor: const Color.fromARGB(255, 222, 222, 222),
+            backgroundColor: AppColors.secondaryColor,
             foregroundColor: Colors.black,
             children: [
               //Boton Login
               SpeedDialChild(
+                backgroundColor: speedDialChildBackgroundColor,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -828,11 +893,13 @@ class _MyhomepageState extends State<Myhomepage> {
                   color: Color.fromARGB(255, 0, 0, 0),
                 ),
                 label: 'Salir de la sesion',
+                labelBackgroundColor: speedDialChildBackgroundColor,
                 labelStyle: labelStyleFloatingActionButton,
                 shape: const CircleBorder(),
               ),
               //Boton de cambiar usuario
               SpeedDialChild(
+                backgroundColor: speedDialChildBackgroundColor,
                 onTap: () {
                   emailsModal(context);
                 },
@@ -842,11 +909,13 @@ class _MyhomepageState extends State<Myhomepage> {
                   size: 30.0,
                 ),
                 label: 'Agregar Usuario',
+                labelBackgroundColor: speedDialChildBackgroundColor,
                 labelStyle: labelStyleFloatingActionButton,
                 shape: const CircleBorder(),
               ),
               //Boton de añadir publicacion
               SpeedDialChild(
+                backgroundColor: speedDialChildBackgroundColor,
                 onTap: () async {
                   final result = await Navigator.push(
                     context,
@@ -881,11 +950,13 @@ class _MyhomepageState extends State<Myhomepage> {
                   color: Color.fromARGB(255, 0, 0, 0),
                 ),
                 label: 'Agregar BlurryPost',
+                labelBackgroundColor: speedDialChildBackgroundColor,
                 labelStyle: labelStyleFloatingActionButton,
                 shape: const CircleBorder(),
               ),
               //USER PROFILE BUTTON
               SpeedDialChild(
+                backgroundColor: speedDialChildBackgroundColor,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -912,35 +983,21 @@ class _MyhomepageState extends State<Myhomepage> {
                   size: 31.0,
                 ),
                 label: 'Cuenta',
+                labelBackgroundColor: speedDialChildBackgroundColor,
                 labelStyle: labelStyleFloatingActionButton,
                 shape: const CircleBorder(),
               ),
               //Boton para agregar un BLURRY
               SpeedDialChild(
+                backgroundColor: speedDialChildBackgroundColor,
                 onTap: () => showAnimatedDialogAdd(context),
                 child: const Icon(
                   Icons.add,
-                  color: Color.fromARGB(255, 213, 161, 4),
+                  color: AppColors.onlyColor,
                   size: 31.0,
                 ),
-                label: 'BLURRY',
-                labelStyle: labelStyleFloatingActionButton,
-                shape: const CircleBorder(),
-              ),
-//BOTON DE CONTROL DE RIESGOS:
-              SpeedDialChild(
-                onTap: () => open(),
-                child: const CircleAvatar(
-                  backgroundColor: AppColors.secondaryColor,
-                  child: Text(
-                    'B',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                label: 'BASE DE DATOS',
+                label: 'Proyect.add',
+                labelBackgroundColor: speedDialChildBackgroundColor,
                 labelStyle: labelStyleFloatingActionButton,
                 shape: const CircleBorder(),
               ),
