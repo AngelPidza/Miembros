@@ -3,9 +3,7 @@ import 'package:bottom_picker/bottom_picker.dart';
 import 'package:bottom_picker/resources/arrays.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:miembros/assets/style/AppColors.dart';
-import 'package:miembros/login/DisplayImageScreen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +21,7 @@ class Userdata extends StatelessWidget {
         title: const Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            Spacer(),
             Padding(
               padding: EdgeInsets.only(right: 10.0),
               child: Text(
@@ -45,7 +44,7 @@ class Userdata extends StatelessWidget {
               color: Colors.white,
             ),
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.of(context).pop(false);
             },
           ),
         ),
@@ -138,7 +137,7 @@ class UserDataBodyState extends State<UserDataBody> {
       if (success) {
         if (!mounted) return; // Verificación de mounted
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bienvenido a Blurry =D')),
+          const SnackBar(content: Text('Bienvenido a Prorandom =D')),
         );
         MongoDataBase.email_ = userEmail;
         //SHARED PREFERENCES
@@ -151,9 +150,7 @@ class UserDataBodyState extends State<UserDataBody> {
         if (kDebugMode) print("Se añadio el email a la lista: $hola");
         await pref.setStringList('EmailList', emailList!);
         if (!mounted) return; // Verificación de mounted
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => DisplayImageScreen()),
-        );
+        Navigator.of(context).pop(true);
       } else {
         if (!mounted) return; // Verificación de mounted
         ScaffoldMessenger.of(context).showSnackBar(
@@ -181,14 +178,16 @@ class UserDataBodyState extends State<UserDataBody> {
                     onTap: _pickImage,
                     child: CircleAvatar(
                       //Fondo del CircleAvatar
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppColors.backgroundColor,
                       radius: 50,
                       backgroundImage:
                           _image != null ? FileImage(File(_image!.path)) : null,
                       child: _image == null
                           ? Text(
                               _name.isNotEmpty ? _name[0].toUpperCase() : '',
-                              style: const TextStyle(fontSize: 40),
+                              style: const TextStyle(
+                                  fontSize: 40,
+                                  color: AppColors.secondaryColor),
                             )
                           : null,
                     ),
@@ -387,11 +386,15 @@ class UserDataBodyState extends State<UserDataBody> {
                     ),
                     onChange: (dateTime) {
                       // Esta función se llama cuando cambia el valor en el picker
-                      print(dateTime); // Solo para debug
+                      if (kDebugMode) {
+                        print(dateTime);
+                      } // Solo para debug
                     },
                     onSubmit: (dateTime) {
                       // Esta función se llama cuando se confirma la selección
-                      print(dateTime); // Solo para debug
+                      if (kDebugMode) {
+                        print(dateTime);
+                      } // Solo para debug
                       // Formatea la fecha y actualiza el controlador
                       _dateController.text =
                           '${dateTime.day}/${dateTime.month}/${dateTime.year}';

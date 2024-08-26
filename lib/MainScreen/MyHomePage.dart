@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:miembros/ProfileScreen/UserProfile.dart';
 import 'package:miembros/assets/style/AppColors.dart';
 import 'package:miembros/MainScreen/body.dart';
 import 'package:miembros/login/login.dart';
 import 'package:miembros/mongoDB/db.dart';
-import 'package:miembros/second_screen.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,6 +19,8 @@ class Myhomepage extends StatefulWidget {
 }
 
 class _MyhomepageState extends State<Myhomepage> {
+//Widgets--------------------
+  late GlobalKey<BodyState> bodyKey;
 //VARIABLES------------------
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController textController = TextEditingController();
@@ -39,6 +41,7 @@ class _MyhomepageState extends State<Myhomepage> {
   void initState() {
     if (kDebugMode) print("initState del MyhomepageState");
     super.initState();
+    bodyKey = GlobalKey<BodyState>();
     _checkLoginStatus();
     _startTimer();
     _getEmailsFromSharedPreferences();
@@ -68,7 +71,7 @@ class _MyhomepageState extends State<Myhomepage> {
 
     if (kDebugMode) {
       print(
-          "SharedPreferences: pref.getBool('isLoggin'): \n ${prefs.getBool('isLoggedIn') != null ? 'true' : 'false'}");
+          "SharedPreferences: pref.getBool('isLoggedIn'): \n ${prefs.getBool('isLoggedIn') != null ? 'true' : 'false'}");
       print(
           "SharedPreferences: prefs.getString('email'): \n ${prefs.getString('email') != null ? '${prefs.getString('email')}' : 'email nulo'}");
       print(
@@ -216,39 +219,44 @@ class _MyhomepageState extends State<Myhomepage> {
               return Center(
                 child: Container(
                   width: MediaQuery.of(context).size.width * 0.8,
-                  height: MediaQuery.of(context).size.width * 0.6,
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.3,
+                  ),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: AppColors.backgroundColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      FutureBuilder<List<Map<String, dynamic>>?>(
-                        future: textBlurry(),
-                        builder: (BuildContext context,
-                            AsyncSnapshot<List<Map<String, dynamic>>?>
-                                snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.secondaryColor,
-                              ),
-                            );
-                          } else if (snapshot.hasError) {
-                            return Center(
-                              child: Text('Error: ${snapshot.error}'),
-                            );
-                          } else if (!snapshot.hasData ||
-                              snapshot.data!.isEmpty) {
-                            return const Center(
-                                child: Text('No data available'));
-                          } else {
-                            return Column(
-                              children: snapshot.data!.map(
-                                (data) {
+                      Flexible(
+                        child: FutureBuilder<List<Map<String, dynamic>>?>(
+                          future: textBlurry(),
+                          builder: (BuildContext context,
+                              AsyncSnapshot<List<Map<String, dynamic>>?>
+                                  snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                  color: AppColors.secondaryColor,
+                                ),
+                              );
+                            } else if (snapshot.hasError) {
+                              return Center(
+                                child: Text('Error: ${snapshot.error}'),
+                              );
+                            } else if (!snapshot.hasData ||
+                                snapshot.data!.isEmpty) {
+                              return const Center(
+                                  child: Text('No data available'));
+                            } else {
+                              return ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: snapshot.data!.length,
+                                itemBuilder: (context, index) {
+                                  final data = snapshot.data![index];
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 8.0),
@@ -280,29 +288,31 @@ class _MyhomepageState extends State<Myhomepage> {
                                             decoration: TextDecoration.none,
                                           ),
                                         ),
-                                        const SizedBox(height: 20),
-                                        ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.of(context).pop(),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                AppColors.secondaryColor,
-                                          ),
-                                          child: const Text(
-                                            'Cerrar',
-                                            style: TextStyle(
-                                              color: AppColors.onlyColor,
-                                            ),
-                                          ),
-                                        ),
                                       ],
                                     ),
                                   );
                                 },
-                              ).toList(),
-                            );
-                          }
-                        },
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(top: 10),
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondaryColor,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                          ),
+                          child: const Text(
+                            'Cerrar',
+                            style: TextStyle(
+                              color: AppColors.onlyColor,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -378,7 +388,7 @@ class _MyhomepageState extends State<Myhomepage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
-                            'Crea un Blurry',
+                            'Crea tu Proyecto',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontFamily: 'nuevo',
@@ -665,9 +675,52 @@ class _MyhomepageState extends State<Myhomepage> {
           ),
         );
       },
-    );
+    ).then((_) {
+      _checkLoginStatus();
+    });
   }
 //-----------------------------------------------------
+
+//Funcion para cerrar sesion
+  Future<void> _signOut() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('isLoggedIn') ?? false) {
+      List<String> prefsEmailList = prefs.getStringList('EmailList') ?? [];
+      prefsEmailList.remove(prefs.getString('email'));
+      prefs.setStringList('EmailList', prefsEmailList);
+      prefs.remove('email');
+      prefs.setBool('isLoggedIn', false);
+      if (kDebugMode) {
+        print('Cerraste sesion');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cerraste sesion'),
+          ),
+        );
+      }
+    } else {
+      final logger = Logger();
+      prefs.getString('email') != null
+          ? {
+              if (kDebugMode)
+                logger.d('el email existe: ${prefs.getString('email')}')
+            }
+          : {
+              if (kDebugMode)
+                logger.d('el email no existe: ${prefs.getString('email')}')
+            };
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No iniciaste sesion aún'),
+          ),
+        );
+      }
+    }
+    _checkLoginStatus();
+    bodyKey.currentState!.refreshData();
+  }
 
 //WIDGET PADRE------------------------------------------------------------------
   @override
@@ -776,9 +829,9 @@ class _MyhomepageState extends State<Myhomepage> {
                               ),
                             ),
                           ),
-                          onPressed: () {
+                          onPressed: () async {
                             if (!mounted) return;
-                            Navigator.push(
+                            final success = await Navigator.push(
                               context,
                               PageRouteBuilder(
                                 transitionDuration:
@@ -797,10 +850,16 @@ class _MyhomepageState extends State<Myhomepage> {
                                   );
                                 },
                               ),
-                            ).then((_) {
-                              print("Regresé a la pantalla anterior");
-                              _checkLoginStatus();
-                            });
+                            );
+                            if (success) {
+                              if (kDebugMode) {
+                                print("LLEGO CON EXITO");
+                              }
+                              bodyKey.currentState!.refreshData();
+                            }
+                            if (kDebugMode) {
+                              print("Porque sucess es $success");
+                            }
                           },
                           child: const Text(
                             'I/R sesión',
@@ -844,7 +903,11 @@ class _MyhomepageState extends State<Myhomepage> {
           ),
         ),
       ),
-      body: Body(callFunction: _checkLoginStatus, onScroll: _handleScroll),
+      body: Body(
+        key: bodyKey,
+        callFunction: _checkLoginStatus,
+        onScroll: _handleScroll,
+      ),
       floatingActionButton: GestureDetector(
         onTap: _resetOpacity,
         child: AnimatedOpacity(
@@ -862,11 +925,68 @@ class _MyhomepageState extends State<Myhomepage> {
             backgroundColor: AppColors.secondaryColor,
             foregroundColor: Colors.black,
             children: [
-              //Boton Login
+              //Boton para salir
+              SpeedDialChild(
+                backgroundColor: speedDialChildBackgroundColor,
+                onTap: () => _signOut(),
+                child: const Icon(
+                  Icons.login,
+                  color: Color.fromARGB(255, 0, 0, 0),
+                ),
+                label: 'Salir de la sesion',
+                labelBackgroundColor: speedDialChildBackgroundColor,
+                labelStyle: labelStyleFloatingActionButton,
+                shape: const CircleBorder(),
+              ),
+              //Boton de Bandeja de cuentas
               SpeedDialChild(
                 backgroundColor: speedDialChildBackgroundColor,
                 onTap: () {
-                  Navigator.push(
+                  // final result = await Navigator.push(
+                  //   context,
+                  //   PageRouteBuilder(
+                  //     transitionDuration: const Duration(milliseconds: 600),
+                  //     pageBuilder: (_, __, ___) => const SecondScreen(),
+                  //     transitionsBuilder: (_, animation, __, child) {
+                  //       return ScaleTransition(
+                  //         scale: Tween<double>(begin: 0.0, end: 1.0).animate(
+                  //           CurvedAnimation(
+                  //             parent: animation,
+                  //             curve: Curves.easeInOutBack,
+                  //           ),
+                  //         ),
+                  //         child: child,
+                  //       );
+                  //     },
+                  //   ),
+                  // );
+                  // if (result == true) {
+                  //   setState(() {
+                  //     if (kDebugMode) {
+                  //       print(
+                  //           "Estoy en MyHomePage.dart, y el result de la seccond_screen devolvio true");
+                  //     }
+                  //     _checkLoginStatus();
+                  //   });
+                  // }
+                  //ESTO FUE UNA BUENA MANERA DE IR A UNA PANTALLA Y ME DEVUELVA UN DATO BOOLEANO
+                  //SOLO DEBIA PONER EN UN BOTON DE LA OTRA PANTALLA: Navigator.pop(context, true/false);
+                  emailsModal(context);
+                },
+                child: const Icon(
+                  Icons.add_card,
+                  color: Color.fromARGB(255, 0, 0, 0),
+                ),
+                label: 'Bandeja de cuentas',
+                labelBackgroundColor: speedDialChildBackgroundColor,
+                labelStyle: labelStyleFloatingActionButton,
+                shape: const CircleBorder(),
+              ),
+              //Boton de Agregar usuarios
+              SpeedDialChild(
+                backgroundColor: speedDialChildBackgroundColor,
+                onTap: () async {
+                  final success = await Navigator.push(
                     context,
                     PageRouteBuilder(
                       transitionDuration: const Duration(milliseconds: 600),
@@ -883,25 +1003,28 @@ class _MyhomepageState extends State<Myhomepage> {
                         );
                       },
                     ),
-                  ).then((_) {
-                    print("Regresé a Myhomepage.dart");
-                    _checkLoginStatus();
-                  });
-                },
-                child: const Icon(
-                  Icons.login,
-                  color: Color.fromARGB(255, 0, 0, 0),
-                ),
-                label: 'Salir de la sesion',
-                labelBackgroundColor: speedDialChildBackgroundColor,
-                labelStyle: labelStyleFloatingActionButton,
-                shape: const CircleBorder(),
-              ),
-              //Boton de cambiar usuario
-              SpeedDialChild(
-                backgroundColor: speedDialChildBackgroundColor,
-                onTap: () {
-                  emailsModal(context);
+                  )
+                      // APRENDI QUE SI USAS ESTO, NO PUEDES USAR Navigator.pop(context, true/false)
+                      // YA QUE, O RECIBE ALGO DE LA PANTALLA SIGUIENTE Y LO ALMACENA (success) O
+                      // HACE ALGO EN LA SIGUIENTE PANTALLA, LO TERMINA Y HACE ALGO (.then(_))
+                      //
+                      // .then((_) {
+                      //   if (kDebugMode) {
+                      //     print(".then(_): Regresé a Myhomepage.dart");
+                      //   }
+                      //   _checkLoginStatus();
+                      // })
+                      //
+                      ;
+                  if (success) {
+                    if (kDebugMode) {
+                      print("LLEGO CON EXITO");
+                    }
+                    bodyKey.currentState?.refreshData();
+                  }
+                  if (kDebugMode) {
+                    print("Porque sucess es $success");
+                  }
                 },
                 child: const Icon(
                   Icons.group_add,
@@ -913,48 +1036,7 @@ class _MyhomepageState extends State<Myhomepage> {
                 labelStyle: labelStyleFloatingActionButton,
                 shape: const CircleBorder(),
               ),
-              //Boton de añadir publicacion
-              SpeedDialChild(
-                backgroundColor: speedDialChildBackgroundColor,
-                onTap: () async {
-                  final result = await Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      transitionDuration: const Duration(milliseconds: 600),
-                      pageBuilder: (_, __, ___) => const SecondScreen(),
-                      transitionsBuilder: (_, animation, __, child) {
-                        return ScaleTransition(
-                          scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeInOutBack,
-                            ),
-                          ),
-                          child: child,
-                        );
-                      },
-                    ),
-                  );
-                  if (result == true) {
-                    setState(() {
-                      if (kDebugMode) {
-                        print(
-                            "Estoy en MyHomePage.dart, y el result de la seccond_screen devolvio true");
-                      }
-                      _checkLoginStatus();
-                    });
-                  }
-                },
-                child: const Icon(
-                  Icons.add_card,
-                  color: Color.fromARGB(255, 0, 0, 0),
-                ),
-                label: 'Agregar BlurryPost',
-                labelBackgroundColor: speedDialChildBackgroundColor,
-                labelStyle: labelStyleFloatingActionButton,
-                shape: const CircleBorder(),
-              ),
-              //USER PROFILE BUTTON
+              //Boton de Cuenta
               SpeedDialChild(
                 backgroundColor: speedDialChildBackgroundColor,
                 onTap: () {
@@ -987,7 +1069,7 @@ class _MyhomepageState extends State<Myhomepage> {
                 labelStyle: labelStyleFloatingActionButton,
                 shape: const CircleBorder(),
               ),
-              //Boton para agregar un BLURRY
+              //Boton para agregar un proyecto
               SpeedDialChild(
                 backgroundColor: speedDialChildBackgroundColor,
                 onTap: () => showAnimatedDialogAdd(context),

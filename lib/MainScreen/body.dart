@@ -13,10 +13,15 @@ class Body extends StatefulWidget {
   const Body({super.key, required this.callFunction, required this.onScroll});
 
   @override
-  _BodyState createState() => _BodyState();
+  BodyState createState() => BodyState();
+
+  void callFunctionFromBody() {
+    callFunction();
+    print('Function called from Body');
+  }
 }
 
-class _BodyState extends State<Body> {
+class BodyState extends State<Body> {
   final ScrollController _scrollController = ScrollController();
   late Future<Map<String, dynamic>> _futureData;
   String emailState = '';
@@ -33,15 +38,18 @@ class _BodyState extends State<Body> {
   }
 
   Future<Map<String, dynamic>> _loadData() async {
+    SharedPreferences pref = await SharedPreferences.getInstance();
+    final login = pref.getBool('isLoggedIn') ?? false;
     final projectsData = await MongoDataBase.getData();
     final canSelectMore = await _userCanSelectProject();
     return {
+      'login': login,
       'projects': projectsData,
       'canSelectMore': canSelectMore,
     };
   }
 
-  Future<void> _refreshData() async {
+  Future<void> refreshData() async {
     widget.callFunction();
     setState(() {
       _futureData = _loadData();
@@ -71,7 +79,7 @@ class _BodyState extends State<Body> {
     return RefreshIndicator(
       backgroundColor: AppColors.backgroundColor,
       color: AppColors.onlyColor,
-      onRefresh: _refreshData,
+      onRefresh: refreshData,
       child: FutureBuilder<Map<String, dynamic>>(
         future: _futureData,
         builder: (context, snapshot) {
@@ -87,6 +95,7 @@ class _BodyState extends State<Body> {
           }
           final data = snapshot.data!['projects'] as List<Map<String, dynamic>>;
           final canSelectMore = snapshot.data!['canSelectMore'] as bool;
+          final login = snapshot.data!['login'] as bool;
 
           return ListView.separated(
             controller: _scrollController,
@@ -96,11 +105,44 @@ class _BodyState extends State<Body> {
               height: 0.5,
             ),
             itemBuilder: (context, index) {
-              final isAvailable = data[index]['Integrantes'] >
-                      (data[index]['Dispuestos'] ?? 0) &&
-                  canSelectMore &&
+              // Verificar si el usuario puede seleccionar el proyecto segun casos:
+              // 0. Si inicio sesion puede elegir proyectos, sino no.
+              final zeroCase = login;
+              // 1. El campo 'Integrantes' (que es campo que contiene el numero
+              // maximmo de integrantes que puede entrar al proyecto) tiene que
+              // ser mayor que el campo 'Dipuestos:' (campo que dice cuantos
+              // usuarios ya estan en el proyecto) pero si no existe, por defecto
+              // sera 0;
+              final firstCase =
+                  data[index]['Integrantes'] > (data[index]['Dispuestos'] ?? 0);
+              // 2. Verifica si el usuario puede añadir mas proyectos (max: 3);
+              final secondCase = canSelectMore;
+              // 3. Revisa si en el campo de 'Participantes:' del proyecto, esta
+              // o no el usuario que intenta apuntarse al proyecto (es decir,
+              // seleccionar dos veces el mismo proyecto, no esta permitido)
+              final thirdCase =
                   !(data[index]['Participantes']?.contains(emailState) ??
                       false);
+              // Aca se verifica los tres casos, si son verdaderos, significa que
+              // todo esta correcto y se puede proceder a elegir los proyectos.
+              final isAvailable =
+                  zeroCase && firstCase && secondCase && thirdCase;
+              int determinarCasoN(bool zeroCase, bool firstCase,
+                  bool secondCase, bool thirdCase) {
+                return !zeroCase
+                    ? 0
+                    : !firstCase
+                        ? 1
+                        : !secondCase
+                            ? 2
+                            : !thirdCase
+                                ? 3
+                                : -1;
+              }
+
+              // Uso de la función:
+              final int n =
+                  determinarCasoN(zeroCase, firstCase, secondCase, thirdCase);
               return Opacity(
                 opacity: isAvailable ? 1.0 : 0.5,
                 child: ListTile(
@@ -163,12 +205,25 @@ class _BodyState extends State<Body> {
                           if (kDebugMode) print(data[index]['ID'].toString());
                         }
                       : () {
-                          // Opcional: Mostrar un mensaje explicando por qué no se puede seleccionar
+                          String getErrorMessage(int n) {
+                            switch (n) {
+                              case 0:
+                                return 'No iniciaste sesion.';
+                              case 1:
+                                return 'Este proyecto ya está lleno.';
+                              case 2:
+                                return 'Ya no puedes añadir más proyectos.';
+                              case 3:
+                                return 'Ya seleccionaste este proyecto.';
+                              default:
+                                return 'Algo anda mal';
+                            }
+                          }
+
+                          //Mostrar un mensaje explicando por qué no se puede seleccionar
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(canSelectMore
-                                  ? 'Este proyecto ya está lleno.'
-                                  : 'Ya has seleccionado el máximo de proyectos permitidos.'),
+                              content: Text(getErrorMessage(n)),
                             ),
                           );
                         },

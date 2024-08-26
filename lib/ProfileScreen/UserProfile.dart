@@ -77,14 +77,19 @@ class _UserProfileState extends State<UserProfile> {
       fontFamily: 'nuevo',
       color: AppColors.cardColor,
     );
+    const estiloTitulo = TextStyle(
+      fontFamily: 'nuevo',
+      fontWeight: FontWeight.w700,
+      color: AppColors.secondaryColor,
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Row(
           children: [
             Spacer(),
             Text(
-              'Pefil del usuario',
-              style: estilo,
+              'Perfil del usuario',
+              style: estiloTitulo,
             ),
           ],
         ),
