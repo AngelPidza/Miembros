@@ -134,8 +134,8 @@ class LoginFormState extends State<LoginForm> {
             }
             success = await MongoDataBase.sesion(data, a);
 
-            if (!mounted) return;
             if (success) {
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                     content: Text('Paso 1/2 completado para registrarse')),

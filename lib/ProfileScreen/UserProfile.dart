@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:miembros/assets/style/AppColors.dart';
@@ -7,7 +6,7 @@ import 'package:miembros/mongoDB/db.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserProfile extends StatefulWidget {
-  const UserProfile({super.key});
+  const UserProfile({Key? key}) : super(key: key);
 
   @override
   _UserProfileState createState() => _UserProfileState();
@@ -22,6 +21,7 @@ class _UserProfileState extends State<UserProfile> {
   String? name;
   String? email;
   bool isLoading = true;
+  bool isAdmin = false;
 
   @override
   void initState() {
@@ -30,41 +30,37 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   Future<void> _fetchUserProfile() async {
-    // Simula la obtención de datos de usuario desde una base de datos
-    // Ejemplo de cómo obtener datos de SharedPreferences
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('isLoggedIn') != null) {
-      if (prefs.getBool('isLoggedIn')!) {
-        Map<String, dynamic>? data =
-            await MongoDataBase.userProfile(prefs.getString('email')!);
-        if (data != null) {
-          DateTime birthDate = DateTime.parse(data['birthdate']);
-          Duration tiempo = DateTime.now().difference(birthDate);
-          int ages = tiempo.inDays ~/ 365;
-          DateTime now = DateTime.parse(data['now']);
-          Duration tiempoDo = DateTime.now().difference(now);
-          int antiquity = tiempoDo.inDays;
-          if (mounted) {
-            setState(() {
-              name = data['name'];
-              username = data['userName'];
-              age = ages;
-              creationDate = antiquity;
-              phone = data['phone'];
-              if (data['image'] != null) {
-                image = base64Decode(data['image']);
-              }
-            });
-          }
-          if (kDebugMode) {
-            print(
-                "name = ${data['name']}; \n username = ${data['userName']}; \n age = $ages; \n creationDate = $antiquity; \n phone = ${data['phone']};");
-          }
-        } else {
-          if (kDebugMode) print("data is null (_fetchUserProfile)");
+    if (prefs.getBool('isLoggedIn') == true) {
+      Map<String, dynamic>? data =
+          await MongoDataBase.userProfile(prefs.getString('email')!);
+      if (data != null) {
+        DateTime birthDate = DateTime.parse(data['birthdate']);
+        Duration tiempo = DateTime.now().difference(birthDate);
+        int ages = tiempo.inDays ~/ 365;
+        DateTime now = DateTime.parse(data['now']);
+        Duration tiempoDo = DateTime.now().difference(now);
+        int antiquity = tiempoDo.inDays;
+
+        if (mounted) {
+          setState(() {
+            name = data['name'];
+            username = data['userName'];
+            age = ages;
+            creationDate = antiquity;
+            phone = data['phone'];
+            if (data['image'] != null) {
+              image = base64Decode(data['image']);
+            }
+            // Verificar si el usuario es admin
+            isAdmin = data['isAdmin'] ?? false;
+          });
         }
-      } else if (prefs.getBool('isLoggedIn')! == false) {}
+      } else {
+        if (kDebugMode) print("data is null (_fetchUserProfile)");
+      }
     }
+
     setState(() {
       email = prefs.getString('email') ?? 'usuario@ejemplo.com';
       isLoading = false;
@@ -82,28 +78,23 @@ class _UserProfileState extends State<UserProfile> {
       fontWeight: FontWeight.w700,
       color: AppColors.secondaryColor,
     );
+
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
             Spacer(),
             Text(
-              'Perfil del usuario',
+              isAdmin ? 'Perfil de Administrador' : 'Perfil de Usuario',
               style: estiloTitulo,
             ),
           ],
         ),
         leading: Padding(
-          padding: const EdgeInsets.only(
-              left: 20.0), // Ajusta el valor según necesites
+          padding: const EdgeInsets.only(left: 20.0),
           child: IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
           ),
         ),
       ),
@@ -227,6 +218,18 @@ class _UserProfileState extends State<UserProfile> {
                                       overflow: TextOverflow.visible,
                                     ),
                                   ),
+                                  if (isAdmin)
+                                    const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 8.0),
+                                      child: Text(
+                                        'Privilegios de Administrador',
+                                        style: TextStyle(
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -235,19 +238,16 @@ class _UserProfileState extends State<UserProfile> {
                       ),
                       ElevatedButton(
                         onPressed: () {
-                          // Simula una actualización de los datos del perfil
                           setState(() {
-                            setState(() {
-                              isLoading = true;
-                            });
-                            _fetchUserProfile();
+                            isLoading = true;
                           });
+                          _fetchUserProfile();
                         },
-                        child: const Text(
-                          'Actualizar Información',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                          ),
+                        child: Text(
+                          isAdmin
+                              ? 'Actualizar Datos de Admin'
+                              : 'Actualizar Información',
+                          style: TextStyle(color: AppColors.textPrimary),
                         ),
                       ),
                     ],

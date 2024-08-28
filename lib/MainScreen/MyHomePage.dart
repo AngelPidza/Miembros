@@ -207,7 +207,7 @@ class _MyhomepageState extends State<Myhomepage> {
   }
 //----------------------------------------------------
 
-//FUNCION PARA MOSTRAR UN 'BLURRY' (parte derecha superior de la pantalla)
+//FUNCION PARA MOSTRAR UN 'PROYECTO' (parte derecha superior de la pantalla)
   void showAnimatedDialog(BuildContext context) {
     showGeneralDialog(
       context: context,
@@ -342,202 +342,204 @@ class _MyhomepageState extends State<Myhomepage> {
   }
 //-----------------------------------------------------
 
-//FUNCION PARA AÑADIR UN 'BLURRY'
-  void showAnimatedDialogAdd(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false, // Hace que el fondo sea transparente
-        barrierColor:
-            const Color.fromARGB(115, 0, 0, 0), // Color del fondo negro
-        pageBuilder: (BuildContext context, Animation<double> animation,
-            Animation<double> secondaryAnimation) {
-          var buttonStyle = ButtonStyle(
-            backgroundColor:
-                WidgetStateProperty.all<Color>(AppColors.secondaryColor),
-          );
-          const submitStyles = TextStyle(color: AppColors.primaryColor);
-          return Stack(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.of(context)
-                      .pop(); // Cierra el diálogo al tocar fuera
-                },
-                child: Container(
-                  color: Colors
-                      .transparent, // Fondo extra para detectar si se pickea fuera y salir del modal
-                ),
+//FUNCION PARA AÑADIR UN 'PROYECTO'
+  void showProjectCreationModal(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final List<TextEditingController> questionControllers = [
+      TextEditingController()
+    ];
+    final projectDataControllers =
+        List.generate(4, (_) => TextEditingController());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5),
+      transitionAnimationController: AnimationController(
+        duration: const Duration(milliseconds: 400),
+        vsync: Navigator.of(context),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AnimatedBuilder(
+              animation: CurvedAnimation(
+                parent: ModalRoute.of(context)!.animation!,
+                curve: Curves.easeInOut,
               ),
-              ScaleTransition(
-                scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeInOutBack,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0.0,
+                      (1 - ModalRoute.of(context)!.animation!.value) * 400),
+                  child: child,
+                );
+              },
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.81,
+                decoration: const BoxDecoration(
+                  color: AppColors.backgroundColor,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
                 ),
-                child: Center(
-                  child: Dialog(
-                    insetPadding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundColor,
-                        borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Crea tu Proyecto',
+                        style: TextStyle(
+                          color: AppColors.onlyColor,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Crea tu Proyecto',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: 'nuevo',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 20,
-                              color: AppColors.onlyColor,
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Form(
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Form(
                             key: formKey,
-                            child: TextFormField(
-                              controller: textController,
-                              decoration: InputDecoration(
-                                labelText: 'Ingrese algo',
-                                labelStyle: const TextStyle(
-                                  color: AppColors.primaryColor,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(
-                                      12.0), // Radio de esquina para el borde
-                                  borderSide: const BorderSide(
-                                    color: Color.fromARGB(
-                                        255, 242, 149, 10), // Color del borde
-                                    width: 2.0, // Grosor del borde
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ...List.generate(4, (index) {
+                                  return Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 16.0),
+                                    child: TextFormField(
+                                      controller: projectDataControllers[index],
+                                      decoration: InputDecoration(
+                                        labelText:
+                                            'Dato del proyecto ${index + 1}',
+                                        border: const OutlineInputBorder(),
+                                      ),
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Este campo es obligatorio';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  );
+                                }),
+                                const Text(
+                                  'Preguntas personalizadas (mínimo 3):',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.onlyColor,
                                   ),
                                 ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                  borderSide: const BorderSide(
-                                    color: AppColors
-                                        .primaryColor, // Color del borde cuando el campo está enfocado
-                                    width: 2.0,
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                  borderSide: const BorderSide(
-                                    color: AppColors
-                                        .primaryColor, // Color del borde cuando el campo está habilitado
-                                    width: 2.0,
-                                  ),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                  borderSide: const BorderSide(
-                                    color: AppColors
-                                        .onlyColor, // Color del borde cuando hay un error
-                                    width: 2.0,
-                                  ),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                  borderSide: const BorderSide(
-                                    color: AppColors
-                                        .onlyColor, // Color del borde cuando hay un error y el campo está enfocado
-                                    width: 2.0,
-                                  ),
-                                ),
-                                errorStyle: const TextStyle(
-                                  color: AppColors.onlyColor,
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Por favor ingrese algún texto';
-                                }
-                                return null;
-                              },
+                                const SizedBox(height: 8),
+                                ...questionControllers
+                                    .asMap()
+                                    .entries
+                                    .map((entry) {
+                                  int idx = entry.key;
+                                  var controller = entry.value;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextFormField(
+                                            controller: controller,
+                                            decoration: InputDecoration(
+                                              labelText: 'Pregunta ${idx + 1}',
+                                              border:
+                                                  const OutlineInputBorder(),
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.remove,
+                                              color: AppColors.errorColor),
+                                          onPressed:
+                                              questionControllers.length > 3
+                                                  ? () {
+                                                      setState(() {
+                                                        questionControllers
+                                                            .removeAt(idx);
+                                                      });
+                                                    }
+                                                  : null,
+                                        ),
+                                        if (idx ==
+                                            questionControllers.length - 1)
+                                          IconButton(
+                                            icon: const Icon(Icons.add,
+                                                color: AppColors.primaryColor),
+                                            onPressed: () {
+                                              setState(() {
+                                                questionControllers.add(
+                                                    TextEditingController());
+                                              });
+                                            },
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              ElevatedButton(
-                                style: buttonStyle,
-                                onPressed: () {
-                                  textController.clear();
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(color: AppColors.errorColor),
+                            ),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: AppColors.onlyColor,
+                              backgroundColor: AppColors.primaryColor,
+                            ),
+                            onPressed: () {
+                              if (formKey.currentState!.validate()) {
+                                if (questionControllers.length < 3) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Debes añadir al menos 3 preguntas personalizadas.')),
+                                  );
+                                } else {
+                                  List<String> projectData =
+                                      projectDataControllers
+                                          .map((controller) => controller.text)
+                                          .toList();
+                                  List<String> questions = questionControllers
+                                      .map((controller) => controller.text)
+                                      .toList();
+                                  print('Datos del proyecto: $projectData');
+                                  print('Preguntas personalizadas: $questions');
                                   Navigator.of(context).pop();
-                                },
-                                child: const Text(
-                                  'Cancelar',
-                                  style: submitStyles,
-                                ),
-                              ),
-                              const Spacer(), // Añade un espacio flexible entre los botones
-                              ElevatedButton(
-                                style: buttonStyle,
-                                onPressed: () {
-                                  if (formKey.currentState?.validate() ??
-                                      false) {
-                                    if (kDebugMode) {
-                                      print(
-                                          'el textController: ${textController.text}');
-                                    }
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        backgroundColor:
-                                            AppColors.backgroundColor,
-                                        content: Column(
-                                          children: [
-                                            Text(
-                                              '¡¡BLURRY!!',
-                                              style: TextStyle(
-                                                  fontFamily: 'nuevo',
-                                                  fontWeight: FontWeight.w600),
-                                            ),
-                                            Icon(
-                                              Icons.bolt,
-                                              color: AppColors.onlyColor,
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                    textController.clear();
-                                    Navigator.of(context).pop();
-                                  }
-                                },
-                                child: const Text(
-                                  'Enviar',
-                                  style: submitStyles,
-                                ),
-                              ),
-                            ],
+                                }
+                              }
+                            },
+                            child: const Text('Crear Proyecto'),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ],
-          );
-        },
-        transitionsBuilder: (BuildContext context, Animation<double> animation,
-            Animation<double> secondaryAnimation, Widget child) {
-          return FadeTransition(
-            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-              CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeInOutBack,
-              ),
-            ),
-            child: child,
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
     );
   }
 //-----------------------------------------------------
@@ -1072,7 +1074,7 @@ class _MyhomepageState extends State<Myhomepage> {
               //Boton para agregar un proyecto
               SpeedDialChild(
                 backgroundColor: speedDialChildBackgroundColor,
-                onTap: () => showAnimatedDialogAdd(context),
+                onTap: () => showProjectCreationModal(context),
                 child: const Icon(
                   Icons.add,
                   color: AppColors.onlyColor,
