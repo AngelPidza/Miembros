@@ -520,4 +520,24 @@ class MongoDataBase {
       },
     );
   }
+
+  static Future<bool> deleteProyect(int proyectId) async {
+    return execute(
+      (db) async {
+        try {
+          final query = where.eq('ID', proyectId);
+          final project = await proyectCollection!.findOne(query);
+          if (project == null) {
+            throw Exception('Proyecto no encontrado');
+          }
+
+          await proyectCollection!.deleteOne(query);
+          return true;
+        } catch (e) {
+          print('Error en deleteProyect: $e');
+          return false;
+        }
+      },
+    );
+  }
 }

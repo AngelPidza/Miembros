@@ -53,6 +53,8 @@ dependencies:
   flutter_dotenv: ^5.1.0
   #logger para el registro de errores
   logger: ^2.4.0
+  #Para el deslizable de las tarjetas
+  flutter_slidable: ^3.1.1
 
 dev_dependencies:
 

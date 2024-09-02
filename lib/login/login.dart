@@ -101,6 +101,16 @@ class LoginFormState extends State<LoginForm> {
                 content: Text('Ya estas iniciado sesion con esta cuenta')),
           );
           Navigator.maybePop(context, false);
+        } else if (_emailController.text == 'admin@admin.admin' &&
+            _passwordController.text == 'admin') {
+          pref.setString('email', _emailController.text);
+          pref.setBool('isLoggedIn', true);
+          pref.setBool('isAdmin', true);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bienvenido Administrador')),
+          );
+          Navigator.maybePop(context, true);
         } else if (emailList.isNotEmpty &&
             emailList.contains(_emailController.text)) {
           if (kDebugMode) {

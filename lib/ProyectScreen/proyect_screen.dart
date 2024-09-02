@@ -36,9 +36,17 @@ class ProyectScreenState extends State<ProyectScreen> {
 
   // Método para enviar la información
   void _submitForm() async {
-    if (_formKey.currentState!.validate()) {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('isAdmin') ?? false == true) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('No puedes enviar el formulario, eres administrador')),
+      );
+      Navigator.maybePop(context);
+    } else if (_formKey.currentState!.validate()) {
       try {
-        SharedPreferences prefs = await SharedPreferences.getInstance();
         if (prefs.getBool('isLoggedIn') ?? false == true) {
           prefs.getString('email');
           if (kDebugMode) {

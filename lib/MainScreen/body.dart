@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:miembros/assets/style/AppColors.dart';
 import 'package:miembros/mongoDB/db.dart';
 import 'package:miembros/ProyectScreen/proyect_screen.dart';
@@ -17,7 +18,9 @@ class Body extends StatefulWidget {
 
   void callFunctionFromBody() {
     callFunction();
-    print('Function called from Body');
+    if (kDebugMode) {
+      print('Function called from Body');
+    }
   }
 }
 
@@ -25,6 +28,7 @@ class BodyState extends State<Body> {
   final ScrollController _scrollController = ScrollController();
   late Future<Map<String, dynamic>> _futureData;
   String emailState = '';
+  bool isAdmin = false;
 
   @override
   void initState() {
@@ -39,6 +43,13 @@ class BodyState extends State<Body> {
 
   Future<Map<String, dynamic>> _loadData() async {
     SharedPreferences pref = await SharedPreferences.getInstance();
+    final admin = pref.getBool('isAdmin') ?? false;
+    if (pref.get('isAdmin') == true) {
+      pref.setBool('isLoggedIn', true);
+    }
+    setState(() {
+      isAdmin = admin;
+    });
     final login = pref.getBool('isLoggedIn') ?? false;
     final projectsData = await MongoDataBase.getData();
     final canSelectMore = await _userCanSelectProject();
@@ -143,90 +154,134 @@ class BodyState extends State<Body> {
               // Uso de la función:
               final int n =
                   determinarCasoN(zeroCase, firstCase, secondCase, thirdCase);
-              return Opacity(
-                opacity: isAvailable ? 1.0 : 0.5,
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.backgroundColor,
-                    child: Text(
-                      data[index]['ID'].toString(),
-                      style: const TextStyle(
-                        fontFamily: 'nuevo',
-                        color: AppColors.onlyColor,
-                        fontWeight: FontWeight.w700,
+              return Slidable(
+                key: Key(data[index]['ID']
+                    .toString()), // Cada elemento necesita una key única
+                endActionPane: ActionPane(
+                  extentRatio: 0.3,
+                  motion: const ScrollMotion(),
+                  children: [
+                    if (isAdmin) ...[
+                      SlidableAction(
+                        onPressed: (context) {
+                          // Acción para editar
+                          // Implementar lógica aquí
+                        },
+                        backgroundColor: AppColors.onlyColor,
+                        foregroundColor: AppColors.backgroundColor,
+                        icon: Icons.edit,
+                      ),
+                      SlidableAction(
+                        onPressed: (context) {
+                          deleteProjectByBody(data[index]['ID']);
+                        },
+                        backgroundColor: AppColors.cardColor,
+                        foregroundColor: AppColors.onlyColor,
+                        icon: Icons.delete,
+                      ),
+                    ],
+                  ],
+                ),
+                child: Opacity(
+                  opacity: isAvailable ? 1.0 : 0.5,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.backgroundColor,
+                      child: Text(
+                        data[index]['ID'].toString(),
+                        style: const TextStyle(
+                          fontFamily: 'nuevo',
+                          color: AppColors.onlyColor,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  title: Text(
-                    data[index]['Nombre'] ?? 'No name',
-                    style: const TextStyle(
+                    title: Text(
+                      data[index]['Nombre'] ?? 'No name',
+                      style: const TextStyle(
+                          fontFamily: 'nuevo',
+                          color: AppColors.backgroundColor,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      data[index]['Descripción'] ?? 'No description',
+                      style: const TextStyle(
                         fontFamily: 'nuevo',
-                        color: AppColors.backgroundColor,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(
-                    data[index]['Descripción'] ?? 'No description',
-                    style: const TextStyle(
-                      fontFamily: 'nuevo',
-                      color: AppColors.cardColor,
+                        color: AppColors.cardColor,
+                      ),
                     ),
-                  ),
-                  trailing: Text(
-                    data[index]['Tipo de Aplicación'] ?? 'hola',
-                    style: const TextStyle(
-                      fontFamily: 'nuevo',
-                      color: AppColors.onlyColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  onTap: isAvailable
-                      ? () {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              transitionDuration:
-                                  const Duration(milliseconds: 600),
-                              pageBuilder: (_, __, ___) =>
-                                  ProyectScreen(idProyect: data[index]['ID']),
-                              transitionsBuilder: (_, animation, __, child) {
-                                return ScaleTransition(
-                                  scale: Tween<double>(begin: 0.0, end: 1.0)
-                                      .animate(
-                                    CurvedAnimation(
-                                      parent: animation,
-                                      curve: Curves.easeInOutBack,
+                    trailing: !isAdmin
+                        ? Text(data[index]['Tipo de Aplicación'] ?? 'hola',
+                            style: const TextStyle(
+                              fontFamily: 'nuevo',
+                              color: AppColors.onlyColor,
+                              fontWeight: FontWeight.w700,
+                            ))
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                data[index]['Tipo de Aplicación'] ?? 'hola',
+                                style: const TextStyle(
+                                  fontFamily: 'nuevo',
+                                  color: AppColors.onlyColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.admin_panel_settings_outlined,
+                                  color: AppColors.onlyColor),
+                            ],
+                          ),
+                    onTap: isAvailable
+                        ? () {
+                            Navigator.push(
+                              context,
+                              PageRouteBuilder(
+                                transitionDuration:
+                                    const Duration(milliseconds: 600),
+                                pageBuilder: (_, __, ___) =>
+                                    ProyectScreen(idProyect: data[index]['ID']),
+                                transitionsBuilder: (_, animation, __, child) {
+                                  return ScaleTransition(
+                                    scale: Tween<double>(begin: 0.0, end: 1.0)
+                                        .animate(
+                                      CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeInOutBack,
+                                      ),
                                     ),
-                                  ),
-                                  child: child,
-                                );
-                              },
-                            ),
-                          );
-                          if (kDebugMode) print(data[index]['ID'].toString());
-                        }
-                      : () {
-                          String getErrorMessage(int n) {
-                            switch (n) {
-                              case 0:
-                                return 'No iniciaste sesion.';
-                              case 1:
-                                return 'Este proyecto ya está lleno.';
-                              case 2:
-                                return 'Ya no puedes añadir más proyectos.';
-                              case 3:
-                                return 'Ya seleccionaste este proyecto.';
-                              default:
-                                return 'Algo anda mal';
-                            }
+                                    child: child,
+                                  );
+                                },
+                              ),
+                            );
+                            if (kDebugMode) print(data[index]['ID'].toString());
                           }
+                        : () {
+                            String getErrorMessage(int n) {
+                              switch (n) {
+                                case 0:
+                                  return 'No iniciaste sesion.';
+                                case 1:
+                                  return 'Este proyecto ya está lleno.';
+                                case 2:
+                                  return 'Ya no puedes añadir más proyectos.';
+                                case 3:
+                                  return 'Ya seleccionaste este proyecto.';
+                                default:
+                                  return 'Algo anda mal';
+                              }
+                            }
 
-                          //Mostrar un mensaje explicando por qué no se puede seleccionar
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(getErrorMessage(n)),
-                            ),
-                          );
-                        },
+                            //Mostrar un mensaje explicando por qué no se puede seleccionar
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(getErrorMessage(n)),
+                              ),
+                            );
+                          },
+                  ),
                 ),
               );
             },
@@ -234,5 +289,21 @@ class BodyState extends State<Body> {
         },
       ),
     );
+  }
+
+  void deleteProjectByBody(data) async {
+    if (kDebugMode) {
+      print(data);
+    }
+    bool success = await MongoDataBase.deleteProyect(data);
+    if (success) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Proyecto eliminado'),
+        ),
+      );
+      refreshData();
+    }
   }
 }

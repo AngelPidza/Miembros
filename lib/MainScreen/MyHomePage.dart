@@ -32,6 +32,7 @@ class _MyhomepageState extends State<Myhomepage> {
   String userEmail = '';
   Uint8List? _userImageData;
   int n = 0;
+  bool isAdmin = false;
 
   double _scrollOffset = 0.0;
 //----------------------------
@@ -93,8 +94,18 @@ class _MyhomepageState extends State<Myhomepage> {
     }
 
     bool loggedIn = prefs.getBool('isLoggedIn') ?? false;
-
-    if (loggedIn) {
+    bool admin = prefs.getBool('isAdmin') ?? false;
+    if (kDebugMode) {
+      print("isAdmin: $admin");
+    }
+    if (admin) {
+      prefs.setBool('isLoggedIn', true);
+      setState(() {
+        userEmail = 'Admin';
+        isLoggedIn = true;
+        isAdmin = true;
+      });
+    } else if (loggedIn) {
       try {
         //Extraer la variable del email del usuario cargado como 'email' del SharedPreferences
         String email = prefs.getString('email')!;
@@ -686,7 +697,17 @@ class _MyhomepageState extends State<Myhomepage> {
 //Funcion para cerrar sesion
   Future<void> _signOut() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('isLoggedIn') ?? false) {
+    if (prefs.getBool('isAdmin') ?? false) {
+      prefs.remove('isAdmin');
+      prefs.remove('email');
+      prefs.setBool('isLoggedIn', false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cerraste sesion Admin'),
+        ),
+      );
+    } else if (prefs.getBool('isLoggedIn') ?? false) {
       List<String> prefsEmailList = prefs.getStringList('EmailList') ?? [];
       prefsEmailList.remove(prefs.getString('email'));
       prefs.setStringList('EmailList', prefsEmailList);
@@ -768,7 +789,31 @@ class _MyhomepageState extends State<Myhomepage> {
                   left: 20,
                   child: isLoggedIn
                       ? GestureDetector(
-                          onTap: () => {emailsModal(context)},
+                          onTap: () => !isAdmin
+                              ? Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    transitionDuration:
+                                        const Duration(milliseconds: 600),
+                                    pageBuilder: (_, __, ___) =>
+                                        const UserProfile(),
+                                    transitionsBuilder:
+                                        (_, animation, __, child) {
+                                      return ScaleTransition(
+                                        scale:
+                                            Tween<double>(begin: 0.0, end: 1.0)
+                                                .animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeInOutBack,
+                                          ),
+                                        ),
+                                        child: child,
+                                      );
+                                    },
+                                  ),
+                                )
+                              : null,
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
@@ -916,11 +961,6 @@ class _MyhomepageState extends State<Myhomepage> {
           opacity: _opacity,
           duration: const Duration(milliseconds: 300),
           child: SpeedDial(
-            child: _opacity == 0.5
-                ? Icon(Icons.view_stream)
-                : Text(
-                    '$n/3',
-                  ),
             activeIcon: Icons.close,
             overlayColor: Colors.black, // Color de la superposición
             overlayOpacity: 0.0, // Opacidad de la superposición
@@ -940,154 +980,186 @@ class _MyhomepageState extends State<Myhomepage> {
                 labelStyle: labelStyleFloatingActionButton,
                 shape: const CircleBorder(),
               ),
-              //Boton de Bandeja de cuentas
-              SpeedDialChild(
-                backgroundColor: speedDialChildBackgroundColor,
-                onTap: () {
-                  // final result = await Navigator.push(
-                  //   context,
-                  //   PageRouteBuilder(
-                  //     transitionDuration: const Duration(milliseconds: 600),
-                  //     pageBuilder: (_, __, ___) => const SecondScreen(),
-                  //     transitionsBuilder: (_, animation, __, child) {
-                  //       return ScaleTransition(
-                  //         scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                  //           CurvedAnimation(
-                  //             parent: animation,
-                  //             curve: Curves.easeInOutBack,
-                  //           ),
-                  //         ),
-                  //         child: child,
-                  //       );
-                  //     },
-                  //   ),
-                  // );
-                  // if (result == true) {
-                  //   setState(() {
-                  //     if (kDebugMode) {
-                  //       print(
-                  //           "Estoy en MyHomePage.dart, y el result de la seccond_screen devolvio true");
-                  //     }
-                  //     _checkLoginStatus();
-                  //   });
-                  // }
-                  //ESTO FUE UNA BUENA MANERA DE IR A UNA PANTALLA Y ME DEVUELVA UN DATO BOOLEANO
-                  //SOLO DEBIA PONER EN UN BOTON DE LA OTRA PANTALLA: Navigator.pop(context, true/false);
-                  emailsModal(context);
-                },
-                child: const Icon(
-                  Icons.add_card,
-                  color: Color.fromARGB(255, 0, 0, 0),
-                ),
-                label: 'Bandeja de cuentas',
-                labelBackgroundColor: speedDialChildBackgroundColor,
-                labelStyle: labelStyleFloatingActionButton,
-                shape: const CircleBorder(),
-              ),
-              //Boton de Agregar usuarios
-              SpeedDialChild(
-                backgroundColor: speedDialChildBackgroundColor,
-                onTap: () async {
-                  final success = await Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      transitionDuration: const Duration(milliseconds: 600),
-                      pageBuilder: (_, __, ___) => const LoginPage(),
-                      transitionsBuilder: (_, animation, __, child) {
-                        return ScaleTransition(
-                          scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeInOutBack,
-                            ),
-                          ),
-                          child: child,
-                        );
-                      },
-                    ),
-                  )
-                      // APRENDI QUE SI USAS ESTO, NO PUEDES USAR Navigator.pop(context, true/false)
-                      // YA QUE, O RECIBE ALGO DE LA PANTALLA SIGUIENTE Y LO ALMACENA (success) O
-                      // HACE ALGO EN LA SIGUIENTE PANTALLA, LO TERMINA Y HACE ALGO (.then(_))
-                      //
-                      // .then((_) {
-                      //   if (kDebugMode) {
-                      //     print(".then(_): Regresé a Myhomepage.dart");
-                      //   }
-                      //   _checkLoginStatus();
-                      // })
-                      //
-                      ;
-                  if (success) {
-                    if (kDebugMode) {
-                      print("LLEGO CON EXITO");
-                    }
-                    bodyKey.currentState?.refreshData();
-                  }
-                  if (kDebugMode) {
-                    print("Porque sucess es $success");
-                  }
-                },
-                child: const Icon(
-                  Icons.group_add,
-                  color: Color.fromARGB(255, 0, 0, 0),
-                  size: 30.0,
-                ),
-                label: 'Agregar Usuario',
-                labelBackgroundColor: speedDialChildBackgroundColor,
-                labelStyle: labelStyleFloatingActionButton,
-                shape: const CircleBorder(),
-              ),
-              //Boton de Cuenta
-              SpeedDialChild(
-                backgroundColor: speedDialChildBackgroundColor,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      transitionDuration: const Duration(milliseconds: 600),
-                      pageBuilder: (_, __, ___) => const UserProfile(),
-                      transitionsBuilder: (_, animation, __, child) {
-                        return ScaleTransition(
-                          scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeInOutBack,
-                            ),
-                          ),
-                          child: child,
-                        );
-                      },
-                    ),
-                  );
-                },
-                child: const Icon(
-                  Icons.account_circle_outlined,
-                  color: Color.fromARGB(255, 0, 0, 0),
-                  size: 31.0,
-                ),
-                label: 'Cuenta',
-                labelBackgroundColor: speedDialChildBackgroundColor,
-                labelStyle: labelStyleFloatingActionButton,
-                shape: const CircleBorder(),
-              ),
+
               //Boton para agregar un proyecto
-              SpeedDialChild(
-                backgroundColor: speedDialChildBackgroundColor,
-                onTap: () => showProjectCreationModal(context),
-                child: const Icon(
-                  Icons.add,
-                  color: AppColors.onlyColor,
-                  size: 31.0,
-                ),
-                label: 'Proyect.add',
-                labelBackgroundColor: speedDialChildBackgroundColor,
-                labelStyle: labelStyleFloatingActionButton,
-                shape: const CircleBorder(),
-              ),
+              ...!isAdmin
+                  ? [
+                      //Boton de Bandeja de cuentas
+                      SpeedDialChild(
+                        backgroundColor: speedDialChildBackgroundColor,
+                        onTap: () {
+                          // final result = await Navigator.push(
+                          //   context,
+                          //   PageRouteBuilder(
+                          //     transitionDuration: const Duration(milliseconds: 600),
+                          //     pageBuilder: (_, __, ___) => const SecondScreen(),
+                          //     transitionsBuilder: (_, animation, __, child) {
+                          //       return ScaleTransition(
+                          //         scale: Tween<double>(begin: 0.0, end: 1.0).animate(
+                          //           CurvedAnimation(
+                          //             parent: animation,
+                          //             curve: Curves.easeInOutBack,
+                          //           ),
+                          //         ),
+                          //         child: child,
+                          //       );
+                          //     },
+                          //   ),
+                          // );
+                          // if (result == true) {
+                          //   setState(() {
+                          //     if (kDebugMode) {
+                          //       print(
+                          //           "Estoy en MyHomePage.dart, y el result de la seccond_screen devolvio true");
+                          //     }
+                          //     _checkLoginStatus();
+                          //   });
+                          // }
+                          //ESTO FUE UNA BUENA MANERA DE IR A UNA PANTALLA Y ME DEVUELVA UN DATO BOOLEANO
+                          //SOLO DEBIA PONER EN UN BOTON DE LA OTRA PANTALLA: Navigator.pop(context, true/false);
+                          emailsModal(context);
+                        },
+                        child: const Icon(
+                          Icons.add_card,
+                          color: Color.fromARGB(255, 0, 0, 0),
+                        ),
+                        label: 'Bandeja de cuentas',
+                        labelBackgroundColor: speedDialChildBackgroundColor,
+                        labelStyle: labelStyleFloatingActionButton,
+                        shape: const CircleBorder(),
+                      ),
+                      //Boton de Agregar usuarios
+                      SpeedDialChild(
+                        backgroundColor: speedDialChildBackgroundColor,
+                        onTap: () async {
+                          final success = await Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              transitionDuration:
+                                  const Duration(milliseconds: 600),
+                              pageBuilder: (_, __, ___) => const LoginPage(),
+                              transitionsBuilder: (_, animation, __, child) {
+                                return ScaleTransition(
+                                  scale: Tween<double>(begin: 0.0, end: 1.0)
+                                      .animate(
+                                    CurvedAnimation(
+                                      parent: animation,
+                                      curve: Curves.easeInOutBack,
+                                    ),
+                                  ),
+                                  child: child,
+                                );
+                              },
+                            ),
+                          )
+                              // APRENDI QUE SI USAS ESTO, NO PUEDES USAR Navigator.pop(context, true/false)
+                              // YA QUE, O RECIBE ALGO DE LA PANTALLA SIGUIENTE Y LO ALMACENA (success) O
+                              // HACE ALGO EN LA SIGUIENTE PANTALLA, LO TERMINA Y HACE ALGO (.then(_))
+                              //
+                              // .then((_) {
+                              //   if (kDebugMode) {
+                              //     print(".then(_): Regresé a Myhomepage.dart");
+                              //   }
+                              //   _checkLoginStatus();
+                              // })
+                              //
+                              ;
+                          if (success) {
+                            if (kDebugMode) {
+                              print("LLEGO CON EXITO");
+                            }
+                            bodyKey.currentState?.refreshData();
+                          }
+                          if (kDebugMode) {
+                            print("Porque sucess es $success");
+                          }
+                        },
+                        child: const Icon(
+                          Icons.group_add,
+                          color: Color.fromARGB(255, 0, 0, 0),
+                          size: 30.0,
+                        ),
+                        label: 'Agregar Usuario',
+                        labelBackgroundColor: speedDialChildBackgroundColor,
+                        labelStyle: labelStyleFloatingActionButton,
+                        shape: const CircleBorder(),
+                      ),
+                      //Boton de Cuenta
+                      SpeedDialChild(
+                        backgroundColor: speedDialChildBackgroundColor,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              transitionDuration:
+                                  const Duration(milliseconds: 600),
+                              pageBuilder: (_, __, ___) => const UserProfile(),
+                              transitionsBuilder: (_, animation, __, child) {
+                                return ScaleTransition(
+                                  scale: Tween<double>(begin: 0.0, end: 1.0)
+                                      .animate(
+                                    CurvedAnimation(
+                                      parent: animation,
+                                      curve: Curves.easeInOutBack,
+                                    ),
+                                  ),
+                                  child: child,
+                                );
+                              },
+                            ),
+                          );
+                        },
+                        child: const Icon(
+                          Icons.account_circle_outlined,
+                          color: Color.fromARGB(255, 0, 0, 0),
+                          size: 31.0,
+                        ),
+                        label: 'Cuenta',
+                        labelBackgroundColor: speedDialChildBackgroundColor,
+                        labelStyle: labelStyleFloatingActionButton,
+                        shape: const CircleBorder(),
+                      ),
+                      SpeedDialChild(
+                        backgroundColor: speedDialChildBackgroundColor,
+                        onTap: () => showProjectCreationModal(context),
+                        child: const Icon(
+                          Icons.add,
+                          color: AppColors.onlyColor,
+                          size: 31.0,
+                        ),
+                        label: 'Proyect.add',
+                        labelBackgroundColor: speedDialChildBackgroundColor,
+                        labelStyle: labelStyleFloatingActionButton,
+                        shape: const CircleBorder(),
+                      )
+                    ]
+                  : [
+                      SpeedDialChild(
+                        backgroundColor: AppColors.backgroundColor,
+                        onTap: () {
+                          if (kDebugMode) {
+                            print('isAdmin: $isAdmin \n Logiado: $isLoggedIn');
+                          }
+                        },
+                        child: const Icon(
+                          Icons.verified_user_outlined,
+                          color: AppColors.onlyColor,
+                          size: 25.0,
+                        ),
+                        label: 'Admin y Logeado',
+                        labelBackgroundColor: speedDialChildBackgroundColor,
+                        labelStyle: labelStyleFloatingActionButton,
+                        shape: const CircleBorder(),
+                      )
+                    ],
             ],
             onOpen: () => _startTimer(),
             onClose: () => _resetOpacity(),
+            child: _opacity == 0.5 || isAdmin
+                ? const Icon(Icons.view_stream)
+                : Text(
+                    '$n/3',
+                  ),
           ),
         ),
       ),
