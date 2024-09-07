@@ -79,7 +79,7 @@ class UserDataBodyState extends State<UserDataBody> {
 
   XFile? _image;
   final ImagePicker _picker = ImagePicker();
-
+  String? _selectedGender;
   String _name = '';
 
   //Esto inicia el UserDataBodyState con el email enviado
@@ -144,13 +144,18 @@ class UserDataBodyState extends State<UserDataBody> {
         SharedPreferences pref = await SharedPreferences.getInstance();
         await pref.setString('email', userEmail);
         await pref.setBool('isLoggedIn', true);
-        List<String>? emailList = pref.getStringList('EmailList');
-        emailList?.add(userEmail);
-        var hola = emailList?.toList() ?? ["no hay nada"];
+        List<String> emailList = pref.getStringList('EmailList') ?? [];
+        emailList.add(userEmail);
+        var hola = emailList.toList();
         if (kDebugMode) print("Se añadio el email a la lista: $hola");
-        await pref.setStringList('EmailList', emailList!);
+        await pref.setStringList('EmailList', emailList);
         if (!mounted) return; // Verificación de mounted
         Navigator.of(context).pop(true);
+        // Agregar un pequeño retraso antes de navegar de vuelta a MyHomePage
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (!mounted) return;
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        });
       } else {
         if (!mounted) return; // Verificación de mounted
         ScaffoldMessenger.of(context).showSnackBar(
@@ -325,6 +330,14 @@ class UserDataBodyState extends State<UserDataBody> {
                 },
               ),
               const SizedBox(height: 16.0),
+              GenderSelectionField(
+                initialValue: _selectedGender,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedGender = value;
+                  });
+                },
+              ),
               TextFormField(
                 controller: _dateController,
                 decoration: const InputDecoration(
@@ -420,7 +433,14 @@ class UserDataBodyState extends State<UserDataBody> {
                       backgroundColor: WidgetStateProperty.all<Color>(
                           AppColors.backgroundColor),
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                      // Cerrar la pantalla
+                      if (kDebugMode) {
+                        print(
+                            'Se esta cerrando el formulario para crear un nuevo usuario');
+                      }
+                      cancelRegister();
+                    },
                     child: const Text(
                       'Atras',
                       style: TextStyle(
@@ -463,6 +483,129 @@ class UserDataBodyState extends State<UserDataBody> {
     _dateController.dispose();
     _nameController.dispose();
     //_nameController.dispose();
+    super.dispose();
+  }
+
+  void cancelRegister() {
+    // Cerrar la pantalla
+    MongoDataBase.email_ = '';
+    MongoDataBase.password_ = '';
+    Navigator.pop(context);
+  }
+}
+
+//Clase para el seleccion del genero
+class GenderSelectionField extends StatefulWidget {
+  final Function(String?) onChanged;
+  final String? initialValue;
+
+  const GenderSelectionField({
+    Key? key,
+    required this.onChanged,
+    this.initialValue,
+  }) : super(key: key);
+
+  @override
+  _GenderSelectionFieldState createState() => _GenderSelectionFieldState();
+}
+
+class _GenderSelectionFieldState extends State<GenderSelectionField> {
+  String? _selectedGender;
+  final TextEditingController _otherGenderController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedGender = widget.initialValue;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Género',
+          style: TextStyle(
+            fontFamily: 'nuevo',
+            color: AppColors.backgroundColor,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _selectedGender,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          ),
+          items: [
+            'Masculino',
+            'Femenino',
+            'No binario',
+            'Prefiero no decirlo',
+            'Otro'
+          ].map<DropdownMenuItem<String>>((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            setState(() {
+              _selectedGender = newValue;
+              if (newValue != 'Otro') {
+                widget.onChanged(newValue);
+              } else {
+                widget.onChanged(_otherGenderController.text);
+              }
+            });
+          },
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor selecciona una opción';
+            }
+            return null;
+          },
+          style: const TextStyle(
+            color: AppColors.backgroundColor,
+            fontFamily: 'nuevo',
+            fontWeight: FontWeight.w300,
+          ),
+        ),
+        if (_selectedGender == 'Otro')
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: TextFormField(
+              controller: _otherGenderController,
+              decoration: const InputDecoration(
+                labelText: 'Especifica tu género',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                widget.onChanged(value);
+              },
+              validator: (value) {
+                if (_selectedGender == 'Otro' &&
+                    (value == null || value.isEmpty)) {
+                  return 'Por favor especifica tu género';
+                }
+                return null;
+              },
+              style: const TextStyle(
+                color: AppColors.backgroundColor,
+                fontFamily: 'nuevo',
+                fontWeight: FontWeight.w300,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _otherGenderController.dispose();
     super.dispose();
   }
 }

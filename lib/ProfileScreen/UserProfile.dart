@@ -13,6 +13,7 @@ class UserProfile extends StatefulWidget {
 }
 
 class _UserProfileState extends State<UserProfile> {
+  bool _isMounted = false;
   Uint8List? image;
   String? phone;
   int? age;
@@ -26,15 +27,24 @@ class _UserProfileState extends State<UserProfile> {
   @override
   void initState() {
     super.initState();
+    _isMounted = true;
     _fetchUserProfile();
   }
 
+  void setStateIfMounted(VoidCallback fn) {
+    if (_isMounted) {
+      setState(fn);
+    }
+  }
+
   Future<void> _fetchUserProfile() async {
+    if (!_isMounted) return;
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('isLoggedIn') == true) {
       Map<String, dynamic>? data =
           await MongoDataBase.userProfile(prefs.getString('email')!);
-      if (data != null) {
+      if (data != null && _isMounted) {
         DateTime birthDate = DateTime.parse(data['birthdate']);
         Duration tiempo = DateTime.now().difference(birthDate);
         int ages = tiempo.inDays ~/ 365;
@@ -42,29 +52,31 @@ class _UserProfileState extends State<UserProfile> {
         Duration tiempoDo = DateTime.now().difference(now);
         int antiquity = tiempoDo.inDays;
 
-        if (mounted) {
-          setState(() {
-            name = data['name'];
-            username = data['userName'];
-            age = ages;
-            creationDate = antiquity;
-            phone = data['phone'];
-            if (data['image'] != null) {
-              image = base64Decode(data['image']);
-            }
-            // Verificar si el usuario es admin
-            isAdmin = data['isAdmin'] ?? false;
-          });
-        }
+        setStateIfMounted(() {
+          name = data['name'];
+          username = data['userName'];
+          age = ages;
+          creationDate = antiquity;
+          phone = data['phone'];
+          if (data['image'] != null) {
+            image = base64Decode(data['image']);
+          }
+          isAdmin = data['isAdmin'] ?? false;
+          email = prefs.getString('email') ?? 'usuario@ejemplo.com';
+          isLoading = false;
+        });
       } else {
         if (kDebugMode) print("data is null (_fetchUserProfile)");
+        setStateIfMounted(() {
+          isLoading = false;
+        });
       }
+    } else {
+      setStateIfMounted(() {
+        email = prefs.getString('email') ?? 'usuario@ejemplo.com';
+        isLoading = false;
+      });
     }
-
-    setState(() {
-      email = prefs.getString('email') ?? 'usuario@ejemplo.com';
-      isLoading = false;
-    });
   }
 
   @override
@@ -238,7 +250,7 @@ class _UserProfileState extends State<UserProfile> {
                       ),
                       ElevatedButton(
                         onPressed: () {
-                          setState(() {
+                          setStateIfMounted(() {
                             isLoading = true;
                           });
                           _fetchUserProfile();
@@ -256,5 +268,11 @@ class _UserProfileState extends State<UserProfile> {
               ),
             ),
     );
+  }
+
+  @override
+  void dispose() {
+    _isMounted = false;
+    super.dispose();
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -70,35 +69,12 @@ class _MyhomepageState extends State<Myhomepage> {
     }
     final prefs = await SharedPreferences.getInstance();
 
-    if (kDebugMode) {
-      print(
-          "SharedPreferences: pref.getBool('isLoggedIn'): \n ${prefs.getBool('isLoggedIn') != null ? 'true' : 'false'}");
-      print(
-          "SharedPreferences: prefs.getString('email'): \n ${prefs.getString('email') != null ? '${prefs.getString('email')}' : 'email nulo'}");
-      print(
-          "SharedPreferences: prefs.getString('EmailList'): \n ${prefs.getStringList('EmailList') != null ? '${prefs.getStringList('EmailList')}' : 'emailList nulo'}");
-    }
-
-    if (kDebugMode) {
-      print(
-          " _checkLoginStatus: VERIFICANDO SI EL pref.getBool('isLoggIn') ES NULO: ");
-    }
-    if (prefs.getBool('isLoggedIn') != null) {
-      prefs.getBool('isLoggedIn')!
-          ? print("Inicio sesion, verificado")
-          : print("No inicio sesion o no existe");
-    } else {
-      if (kDebugMode) {
-        print("no existe ningun isLoggin");
-      }
-    }
-
     bool loggedIn = prefs.getBool('isLoggedIn') ?? false;
     bool admin = prefs.getBool('isAdmin') ?? false;
     if (kDebugMode) {
       print("isAdmin: $admin");
     }
-    if (admin) {
+    if (admin == true) {
       prefs.setBool('isLoggedIn', true);
       setState(() {
         userEmail = 'Admin';
@@ -354,13 +330,16 @@ class _MyhomepageState extends State<Myhomepage> {
 //-----------------------------------------------------
 
 //FUNCION PARA AÑADIR UN 'PROYECTO'
+
   void showProjectCreationModal(BuildContext context) {
     final formKey = GlobalKey<FormState>();
     final List<TextEditingController> questionControllers = [
+      TextEditingController(),
+      TextEditingController(),
       TextEditingController()
     ];
     final projectDataControllers =
-        List.generate(4, (_) => TextEditingController());
+        List.generate(7, (_) => TextEditingController());
 
     showModalBottomSheet(
       context: context,
@@ -374,27 +353,18 @@ class _MyhomepageState extends State<Myhomepage> {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
-            return AnimatedBuilder(
-              animation: CurvedAnimation(
-                parent: ModalRoute.of(context)!.animation!,
-                curve: Curves.easeInOut,
-              ),
-              builder: (context, child) {
-                return Transform.translate(
-                  offset: Offset(0.0,
-                      (1 - ModalRoute.of(context)!.animation!.value) * 400),
-                  child: child,
-                );
-              },
-              child: Container(
-                height: MediaQuery.of(context).size.height * 0.81,
-                decoration: const BoxDecoration(
-                  color: AppColors.backgroundColor,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.81,
+              decoration: const BoxDecoration(
+                color: AppColors.backgroundColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom),
                 child: Column(
                   children: [
                     const Padding(
@@ -417,20 +387,48 @@ class _MyhomepageState extends State<Myhomepage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ...List.generate(4, (index) {
+                                // Campos del proyecto
+                                ...List.generate(7, (index) {
+                                  final labels = [
+                                    'Nombre',
+                                    'Tipo de Aplicación',
+                                    'Área',
+                                    'Descripción',
+                                    'Objetivos',
+                                    'Estado',
+                                    'Tiempo de Desarrollo',
+                                    'Integrantes',
+                                    'Especialidades Requeridas'
+                                  ];
                                   return Padding(
                                     padding:
                                         const EdgeInsets.only(bottom: 16.0),
                                     child: TextFormField(
+                                      style: const TextStyle(
+                                        fontFamily: 'nuevo',
+                                        color: AppColors.onlyColor,
+                                      ),
                                       controller: projectDataControllers[index],
                                       decoration: InputDecoration(
-                                        labelText:
-                                            'Dato del proyecto ${index + 1}',
+                                        labelText: labels[index],
+                                        labelStyle: const TextStyle(
+                                          fontFamily: 'nuevo',
+                                          color: AppColors.secondaryColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                         border: const OutlineInputBorder(),
                                       ),
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
                                           return 'Este campo es obligatorio';
+                                        }
+                                        // Validaciones específicas, como tiempo de desarrollo
+                                        if (index == 6) {
+                                          final regExp = RegExp(
+                                              r'^\d+\s+(semana|semanas)$');
+                                          if (!regExp.hasMatch(value)) {
+                                            return 'Ingrese un tiempo válido (ej. 10 semanas)';
+                                          }
                                         }
                                         return null;
                                       },
@@ -445,55 +443,63 @@ class _MyhomepageState extends State<Myhomepage> {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                ...questionControllers
-                                    .asMap()
-                                    .entries
-                                    .map((entry) {
-                                  int idx = entry.key;
-                                  var controller = entry.value;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: TextFormField(
-                                            controller: controller,
-                                            decoration: InputDecoration(
-                                              labelText: 'Pregunta ${idx + 1}',
-                                              border:
-                                                  const OutlineInputBorder(),
+                                ...questionControllers.asMap().entries.map(
+                                  (entry) {
+                                    int idx = entry.key;
+                                    var controller = entry.value;
+                                    return Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 8.0),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: TextFormField(
+                                              controller: controller,
+                                              decoration: InputDecoration(
+                                                labelText:
+                                                    'Pregunta ${idx + 1}',
+                                                labelStyle: const TextStyle(
+                                                  fontFamily: 'nuevo',
+                                                  color:
+                                                      AppColors.secondaryColor,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                border:
+                                                    const OutlineInputBorder(),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.remove,
-                                              color: AppColors.errorColor),
-                                          onPressed:
-                                              questionControllers.length > 3
-                                                  ? () {
-                                                      setState(() {
-                                                        questionControllers
-                                                            .removeAt(idx);
-                                                      });
-                                                    }
-                                                  : null,
-                                        ),
-                                        if (idx ==
-                                            questionControllers.length - 1)
                                           IconButton(
-                                            icon: const Icon(Icons.add,
-                                                color: AppColors.primaryColor),
-                                            onPressed: () {
-                                              setState(() {
-                                                questionControllers.add(
-                                                    TextEditingController());
-                                              });
-                                            },
+                                            icon: const Icon(Icons.remove,
+                                                color: AppColors.errorColor),
+                                            onPressed:
+                                                questionControllers.length > 3
+                                                    ? () {
+                                                        setState(() {
+                                                          questionControllers
+                                                              .removeAt(idx);
+                                                        });
+                                                      }
+                                                    : null,
                                           ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
+                                          if (idx ==
+                                              questionControllers.length - 1)
+                                            IconButton(
+                                              icon: const Icon(Icons.add,
+                                                  color:
+                                                      AppColors.primaryColor),
+                                              onPressed: () {
+                                                setState(() {
+                                                  questionControllers.add(
+                                                      TextEditingController());
+                                                });
+                                              },
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
                               ],
                             ),
                           ),
@@ -553,6 +559,7 @@ class _MyhomepageState extends State<Myhomepage> {
       },
     );
   }
+
 //-----------------------------------------------------
 
 //Modal de los Emails para poder cambiar segun guardado en el SharePreferences
@@ -723,6 +730,8 @@ class _MyhomepageState extends State<Myhomepage> {
         );
       }
     } else {
+      prefs.remove('email');
+      prefs.setBool('isLoggedIn', false);
       final logger = Logger();
       prefs.getString('email') != null
           ? {
@@ -898,11 +907,11 @@ class _MyhomepageState extends State<Myhomepage> {
                                 },
                               ),
                             );
-                            if (success) {
+                            if (success == true) {
                               if (kDebugMode) {
                                 print("LLEGO CON EXITO");
                               }
-                              bodyKey.currentState!.refreshData();
+                              bodyKey.currentState?.refreshData();
                             }
                             if (kDebugMode) {
                               print("Porque sucess es $success");
@@ -955,214 +964,228 @@ class _MyhomepageState extends State<Myhomepage> {
         callFunction: _checkLoginStatus,
         onScroll: _handleScroll,
       ),
-      floatingActionButton: GestureDetector(
-        onTap: _resetOpacity,
-        child: AnimatedOpacity(
-          opacity: _opacity,
-          duration: const Duration(milliseconds: 300),
-          child: SpeedDial(
-            activeIcon: Icons.close,
-            overlayColor: Colors.black, // Color de la superposición
-            overlayOpacity: 0.0, // Opacidad de la superposición
-            backgroundColor: AppColors.secondaryColor,
-            foregroundColor: Colors.black,
-            children: [
-              //Boton para salir
-              SpeedDialChild(
-                backgroundColor: speedDialChildBackgroundColor,
-                onTap: () => _signOut(),
-                child: const Icon(
-                  Icons.login,
-                  color: Color.fromARGB(255, 0, 0, 0),
-                ),
-                label: 'Salir de la sesion',
-                labelBackgroundColor: speedDialChildBackgroundColor,
-                labelStyle: labelStyleFloatingActionButton,
-                shape: const CircleBorder(),
-              ),
+      floatingActionButton: isLoggedIn
+          ? GestureDetector(
+              onTap: _resetOpacity,
+              child: AnimatedOpacity(
+                opacity: _opacity,
+                duration: const Duration(milliseconds: 300),
+                child: SpeedDial(
+                  activeIcon: Icons.close,
+                  overlayColor: Colors.black, // Color de la superposición
+                  overlayOpacity: 0.0, // Opacidad de la superposición
+                  backgroundColor: AppColors.secondaryColor,
+                  foregroundColor: Colors.black,
+                  children: [
+                    //Boton para salir
+                    SpeedDialChild(
+                      backgroundColor: speedDialChildBackgroundColor,
+                      onTap: () => _signOut(),
+                      child: const Icon(
+                        Icons.login,
+                        color: Color.fromARGB(255, 0, 0, 0),
+                      ),
+                      label: 'Salir de la sesion',
+                      labelBackgroundColor: speedDialChildBackgroundColor,
+                      labelStyle: labelStyleFloatingActionButton,
+                      shape: const CircleBorder(),
+                    ),
 
-              //Boton para agregar un proyecto
-              ...!isAdmin
-                  ? [
-                      //Boton de Bandeja de cuentas
-                      SpeedDialChild(
-                        backgroundColor: speedDialChildBackgroundColor,
-                        onTap: () {
-                          // final result = await Navigator.push(
-                          //   context,
-                          //   PageRouteBuilder(
-                          //     transitionDuration: const Duration(milliseconds: 600),
-                          //     pageBuilder: (_, __, ___) => const SecondScreen(),
-                          //     transitionsBuilder: (_, animation, __, child) {
-                          //       return ScaleTransition(
-                          //         scale: Tween<double>(begin: 0.0, end: 1.0).animate(
-                          //           CurvedAnimation(
-                          //             parent: animation,
-                          //             curve: Curves.easeInOutBack,
-                          //           ),
-                          //         ),
-                          //         child: child,
-                          //       );
-                          //     },
-                          //   ),
-                          // );
-                          // if (result == true) {
-                          //   setState(() {
-                          //     if (kDebugMode) {
-                          //       print(
-                          //           "Estoy en MyHomePage.dart, y el result de la seccond_screen devolvio true");
-                          //     }
-                          //     _checkLoginStatus();
-                          //   });
-                          // }
-                          //ESTO FUE UNA BUENA MANERA DE IR A UNA PANTALLA Y ME DEVUELVA UN DATO BOOLEANO
-                          //SOLO DEBIA PONER EN UN BOTON DE LA OTRA PANTALLA: Navigator.pop(context, true/false);
-                          emailsModal(context);
-                        },
-                        child: const Icon(
-                          Icons.add_card,
-                          color: Color.fromARGB(255, 0, 0, 0),
-                        ),
-                        label: 'Bandeja de cuentas',
-                        labelBackgroundColor: speedDialChildBackgroundColor,
-                        labelStyle: labelStyleFloatingActionButton,
-                        shape: const CircleBorder(),
-                      ),
-                      //Boton de Agregar usuarios
-                      SpeedDialChild(
-                        backgroundColor: speedDialChildBackgroundColor,
-                        onTap: () async {
-                          final success = await Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              transitionDuration:
-                                  const Duration(milliseconds: 600),
-                              pageBuilder: (_, __, ___) => const LoginPage(),
-                              transitionsBuilder: (_, animation, __, child) {
-                                return ScaleTransition(
-                                  scale: Tween<double>(begin: 0.0, end: 1.0)
-                                      .animate(
-                                    CurvedAnimation(
-                                      parent: animation,
-                                      curve: Curves.easeInOutBack,
-                                    ),
+                    //Boton para agregar un proyecto
+                    ...!isAdmin
+                        ? [
+                            //Boton de Bandeja de cuentas
+                            SpeedDialChild(
+                              backgroundColor: speedDialChildBackgroundColor,
+                              onTap: () {
+                                // final result = await Navigator.push(
+                                //   context,
+                                //   PageRouteBuilder(
+                                //     transitionDuration: const Duration(milliseconds: 600),
+                                //     pageBuilder: (_, __, ___) => const SecondScreen(),
+                                //     transitionsBuilder: (_, animation, __, child) {
+                                //       return ScaleTransition(
+                                //         scale: Tween<double>(begin: 0.0, end: 1.0).animate(
+                                //           CurvedAnimation(
+                                //             parent: animation,
+                                //             curve: Curves.easeInOutBack,
+                                //           ),
+                                //         ),
+                                //         child: child,
+                                //       );
+                                //     },
+                                //   ),
+                                // );
+                                // if (result == true) {
+                                //   setState(() {
+                                //     if (kDebugMode) {
+                                //       print(
+                                //           "Estoy en MyHomePage.dart, y el result de la seccond_screen devolvio true");
+                                //     }
+                                //     _checkLoginStatus();
+                                //   });
+                                // }
+                                //ESTO FUE UNA BUENA MANERA DE IR A UNA PANTALLA Y ME DEVUELVA UN DATO BOOLEANO
+                                //SOLO DEBIA PONER EN UN BOTON DE LA OTRA PANTALLA: Navigator.pop(context, true/false);
+                                emailsModal(context);
+                              },
+                              child: const Icon(
+                                Icons.add_card,
+                                color: Color.fromARGB(255, 0, 0, 0),
+                              ),
+                              label: 'Bandeja de cuentas',
+                              labelBackgroundColor:
+                                  speedDialChildBackgroundColor,
+                              labelStyle: labelStyleFloatingActionButton,
+                              shape: const CircleBorder(),
+                            ),
+                            //Boton de Agregar usuarios
+                            SpeedDialChild(
+                              backgroundColor: speedDialChildBackgroundColor,
+                              onTap: () async {
+                                final success = await Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    transitionDuration:
+                                        const Duration(milliseconds: 600),
+                                    pageBuilder: (_, __, ___) =>
+                                        const LoginPage(),
+                                    transitionsBuilder:
+                                        (_, animation, __, child) {
+                                      return ScaleTransition(
+                                        scale:
+                                            Tween<double>(begin: 0.0, end: 1.0)
+                                                .animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeInOutBack,
+                                          ),
+                                        ),
+                                        child: child,
+                                      );
+                                    },
                                   ),
-                                  child: child,
+                                )
+                                    // APRENDI QUE SI USAS ESTO, NO PUEDES USAR Navigator.pop(context, true/false)
+                                    // YA QUE, O RECIBE ALGO DE LA PANTALLA SIGUIENTE Y LO ALMACENA (success) O
+                                    // HACE ALGO EN LA SIGUIENTE PANTALLA, LO TERMINA Y HACE ALGO (.then(_))
+                                    //
+                                    // .then((_) {
+                                    //   if (kDebugMode) {
+                                    //     print(".then(_): Regresé a Myhomepage.dart");
+                                    //   }
+                                    //   _checkLoginStatus();
+                                    // })
+                                    //
+                                    ;
+                                if (success) {
+                                  if (kDebugMode) {
+                                    print("LLEGO CON EXITO");
+                                  }
+                                  bodyKey.currentState?.refreshData();
+                                }
+                                if (kDebugMode) {
+                                  print("Porque sucess es $success");
+                                }
+                              },
+                              child: const Icon(
+                                Icons.group_add,
+                                color: Color.fromARGB(255, 0, 0, 0),
+                                size: 30.0,
+                              ),
+                              label: 'Agregar Usuario',
+                              labelBackgroundColor:
+                                  speedDialChildBackgroundColor,
+                              labelStyle: labelStyleFloatingActionButton,
+                              shape: const CircleBorder(),
+                            ),
+                            //Boton de Cuenta
+                            SpeedDialChild(
+                              backgroundColor: speedDialChildBackgroundColor,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    transitionDuration:
+                                        const Duration(milliseconds: 600),
+                                    pageBuilder: (_, __, ___) =>
+                                        const UserProfile(),
+                                    transitionsBuilder:
+                                        (_, animation, __, child) {
+                                      return ScaleTransition(
+                                        scale:
+                                            Tween<double>(begin: 0.0, end: 1.0)
+                                                .animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeInOutBack,
+                                          ),
+                                        ),
+                                        child: child,
+                                      );
+                                    },
+                                  ),
                                 );
                               },
+                              child: const Icon(
+                                Icons.account_circle_outlined,
+                                color: Color.fromARGB(255, 0, 0, 0),
+                                size: 31.0,
+                              ),
+                              label: 'Cuenta',
+                              labelBackgroundColor:
+                                  speedDialChildBackgroundColor,
+                              labelStyle: labelStyleFloatingActionButton,
+                              shape: const CircleBorder(),
                             ),
-                          )
-                              // APRENDI QUE SI USAS ESTO, NO PUEDES USAR Navigator.pop(context, true/false)
-                              // YA QUE, O RECIBE ALGO DE LA PANTALLA SIGUIENTE Y LO ALMACENA (success) O
-                              // HACE ALGO EN LA SIGUIENTE PANTALLA, LO TERMINA Y HACE ALGO (.then(_))
-                              //
-                              // .then((_) {
-                              //   if (kDebugMode) {
-                              //     print(".then(_): Regresé a Myhomepage.dart");
-                              //   }
-                              //   _checkLoginStatus();
-                              // })
-                              //
-                              ;
-                          if (success) {
-                            if (kDebugMode) {
-                              print("LLEGO CON EXITO");
-                            }
-                            bodyKey.currentState?.refreshData();
-                          }
-                          if (kDebugMode) {
-                            print("Porque sucess es $success");
-                          }
-                        },
-                        child: const Icon(
-                          Icons.group_add,
-                          color: Color.fromARGB(255, 0, 0, 0),
-                          size: 30.0,
-                        ),
-                        label: 'Agregar Usuario',
-                        labelBackgroundColor: speedDialChildBackgroundColor,
-                        labelStyle: labelStyleFloatingActionButton,
-                        shape: const CircleBorder(),
-                      ),
-                      //Boton de Cuenta
-                      SpeedDialChild(
-                        backgroundColor: speedDialChildBackgroundColor,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              transitionDuration:
-                                  const Duration(milliseconds: 600),
-                              pageBuilder: (_, __, ___) => const UserProfile(),
-                              transitionsBuilder: (_, animation, __, child) {
-                                return ScaleTransition(
-                                  scale: Tween<double>(begin: 0.0, end: 1.0)
-                                      .animate(
-                                    CurvedAnimation(
-                                      parent: animation,
-                                      curve: Curves.easeInOutBack,
-                                    ),
-                                  ),
-                                  child: child,
-                                );
+                            SpeedDialChild(
+                              backgroundColor: speedDialChildBackgroundColor,
+                              onTap: () => showProjectCreationModal(context),
+                              child: const Icon(
+                                Icons.add,
+                                color: AppColors.onlyColor,
+                                size: 31.0,
+                              ),
+                              label: 'Proyect.add',
+                              labelBackgroundColor:
+                                  speedDialChildBackgroundColor,
+                              labelStyle: labelStyleFloatingActionButton,
+                              shape: const CircleBorder(),
+                            )
+                          ]
+                        : [
+                            SpeedDialChild(
+                              backgroundColor: AppColors.backgroundColor,
+                              onTap: () {
+                                if (kDebugMode) {
+                                  print(
+                                      'isAdmin: $isAdmin \n Logiado: $isLoggedIn');
+                                }
                               },
-                            ),
-                          );
-                        },
-                        child: const Icon(
-                          Icons.account_circle_outlined,
-                          color: Color.fromARGB(255, 0, 0, 0),
-                          size: 31.0,
+                              child: const Icon(
+                                Icons.verified_user_outlined,
+                                color: AppColors.onlyColor,
+                                size: 25.0,
+                              ),
+                              label: 'Admin y Logeado',
+                              labelBackgroundColor:
+                                  speedDialChildBackgroundColor,
+                              labelStyle: labelStyleFloatingActionButton,
+                              shape: const CircleBorder(),
+                            )
+                          ],
+                  ],
+                  onOpen: () => _startTimer(),
+                  onClose: () => _resetOpacity(),
+                  child: _opacity == 0.5 || isAdmin
+                      ? const Icon(Icons.view_stream)
+                      : Text(
+                          '$n/3',
                         ),
-                        label: 'Cuenta',
-                        labelBackgroundColor: speedDialChildBackgroundColor,
-                        labelStyle: labelStyleFloatingActionButton,
-                        shape: const CircleBorder(),
-                      ),
-                      SpeedDialChild(
-                        backgroundColor: speedDialChildBackgroundColor,
-                        onTap: () => showProjectCreationModal(context),
-                        child: const Icon(
-                          Icons.add,
-                          color: AppColors.onlyColor,
-                          size: 31.0,
-                        ),
-                        label: 'Proyect.add',
-                        labelBackgroundColor: speedDialChildBackgroundColor,
-                        labelStyle: labelStyleFloatingActionButton,
-                        shape: const CircleBorder(),
-                      )
-                    ]
-                  : [
-                      SpeedDialChild(
-                        backgroundColor: AppColors.backgroundColor,
-                        onTap: () {
-                          if (kDebugMode) {
-                            print('isAdmin: $isAdmin \n Logiado: $isLoggedIn');
-                          }
-                        },
-                        child: const Icon(
-                          Icons.verified_user_outlined,
-                          color: AppColors.onlyColor,
-                          size: 25.0,
-                        ),
-                        label: 'Admin y Logeado',
-                        labelBackgroundColor: speedDialChildBackgroundColor,
-                        labelStyle: labelStyleFloatingActionButton,
-                        shape: const CircleBorder(),
-                      )
-                    ],
-            ],
-            onOpen: () => _startTimer(),
-            onClose: () => _resetOpacity(),
-            child: _opacity == 0.5 || isAdmin
-                ? const Icon(Icons.view_stream)
-                : Text(
-                    '$n/3',
-                  ),
-          ),
-        ),
-      ),
+                ),
+              ),
+            )
+          : null,
     );
   }
 }

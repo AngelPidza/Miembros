@@ -44,12 +44,12 @@ class BodyState extends State<Body> {
   Future<Map<String, dynamic>> _loadData() async {
     SharedPreferences pref = await SharedPreferences.getInstance();
     final admin = pref.getBool('isAdmin') ?? false;
-    if (pref.get('isAdmin') == true) {
+    if (admin == true) {
       pref.setBool('isLoggedIn', true);
+      setState(() {
+        isAdmin = admin;
+      });
     }
-    setState(() {
-      isAdmin = admin;
-    });
     final login = pref.getBool('isLoggedIn') ?? false;
     final projectsData = await MongoDataBase.getData();
     final canSelectMore = await _userCanSelectProject();

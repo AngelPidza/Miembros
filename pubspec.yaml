@@ -55,6 +55,8 @@ dependencies:
   logger: ^2.4.0
   #Para el deslizable de las tarjetas
   flutter_slidable: ^3.1.1
+  #Para que el teclado aparezca
+  flutter_keyboard_visibility: ^6.0.0
 
 dev_dependencies:
 

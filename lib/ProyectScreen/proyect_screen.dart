@@ -228,8 +228,8 @@ class ProyectScreenState extends State<ProyectScreen> {
                   LinearProgressIndicator(
                     value: _progress,
                     backgroundColor: AppColors.cardColor,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(AppColors.onlyColor),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.onlyColor),
                   ),
                   const SizedBox(height: 20),
                   Form(
@@ -264,20 +264,20 @@ class ProyectScreenState extends State<ProyectScreen> {
                     children: [
                       ElevatedButton(
                         onPressed: _cancelForm,
-                        child: Text('Cancelar'),
                         style: ElevatedButton.styleFrom(
                           foregroundColor: AppColors.onlyColor,
                           backgroundColor: AppColors.backgroundColor,
                         ),
+                        child: const Text('Cancelar'),
                       ),
-                      Spacer(),
+                      const Spacer(),
                       ElevatedButton(
                         onPressed: _clearForm,
-                        child: Text('Borrar'),
                         style: ElevatedButton.styleFrom(
                           foregroundColor: AppColors.onlyColor,
                           backgroundColor: AppColors.backgroundColor,
                         ),
+                        child: const Text('Borrar'),
                       ),
                     ],
                   ),

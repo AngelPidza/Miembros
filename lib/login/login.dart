@@ -152,10 +152,11 @@ class LoginFormState extends State<LoginForm> {
               );
               pref.setString('email', _emailController.text);
               if (!mounted) return;
-              Navigator.of(context).pushReplacement(
+              Navigator.push(
+                context,
                 PageRouteBuilder(
                   transitionDuration: const Duration(milliseconds: 600),
-                  pageBuilder: (_, __, ___) => Userdata(),
+                  pageBuilder: (_, __, ___) => const Userdata(),
                   transitionsBuilder: (_, animation, __, child) {
                     return ScaleTransition(
                       scale: Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -168,8 +169,14 @@ class LoginFormState extends State<LoginForm> {
                     );
                   },
                 ),
-              );
+              ).then((value) {
+                if (value == true) {
+                  if (!mounted) return;
+                  Navigator.of(context).pop(true);
+                }
+              });
             } else {
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                     content: Text('Correo ya registrado con otro usuario')),
