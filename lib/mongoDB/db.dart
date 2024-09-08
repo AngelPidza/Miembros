@@ -419,9 +419,8 @@ class MongoDataBase {
   static Future<Map<String, dynamic>> collectionProyectInformation(int id) {
     return execute((db) async {
       try {
-        if (proyectCollection == null) {
-          throw Exception(
-              'La colección no está inicializada en buscarProyectoPorId');
+        if (proyectCollection == null || questionCollection == null) {
+          throw Exception('Las colecciones no están inicializadas');
         }
 
         final query = where.eq('ID', id);
@@ -430,6 +429,16 @@ class MongoDataBase {
         if (proyecto == null) {
           print('No se encontró ningún proyecto con el ID: $id');
           return {};
+        }
+
+        // Buscar las preguntas asociadas al proyecto
+        final preguntasQuery = where.eq('proyectoId', id);
+        final preguntasDoc = await questionCollection!.findOne(preguntasQuery);
+
+        List<Map<String, dynamic>> preguntas = [];
+        if (preguntasDoc != null && preguntasDoc['preguntas'] != null) {
+          preguntas =
+              List<Map<String, dynamic>>.from(preguntasDoc['preguntas']);
         }
 
         return {
@@ -444,6 +453,7 @@ class MongoDataBase {
           "Estado": proyecto['Estado'] as String? ?? '',
           "Tiempo de Desarrollo":
               proyecto['Tiempo de Desarrollo'] as String? ?? '',
+          "Preguntas": preguntas,
         };
       } catch (e) {
         print("Error al buscar el proyecto: $e");
@@ -452,7 +462,8 @@ class MongoDataBase {
     });
   }
 
-  static Future<bool> submitForm(String email, int proyectId) {
+  static Future<bool> submitFormWithAnswers(
+      String email, int proyectId, List<Map<String, dynamic>> respuestas) {
     return execute((db) async {
       try {
         final userQuery = where.eq('email', email);
@@ -467,14 +478,14 @@ class MongoDataBase {
           throw Exception('El proyecto no existe');
         }
 
-        // Check if user already has this project
+        // Verificar si el usuario ya está en este proyecto
         final List<dynamic> userProjects = user['proyectos'] ?? [];
         if (userProjects.contains(proyectId)) {
           print("El usuario ya está en este proyecto");
           return false;
         }
 
-        // Check if project is already at capacity
+        // Verificar si el proyecto ya está lleno
         final int integrantes = project['Integrantes'] ?? 0;
         final int dispuestos = project['Dispuestos'] ?? 0;
         if (dispuestos >= integrantes) {
@@ -482,11 +493,11 @@ class MongoDataBase {
           return false;
         }
 
-        // Update user
+        // Actualizar usuario
         await userCollection!.updateOne(
             userQuery, modify.set('proyectos', [...userProjects, proyectId]));
 
-        // Update project
+        // Actualizar proyecto
         final List<dynamic> projectParticipants =
             project['Participantes'] ?? [];
         await proyectCollection!.updateOne(
@@ -494,10 +505,17 @@ class MongoDataBase {
             modify.set('Participantes', [...projectParticipants, email]).inc(
                 'Dispuestos', 1));
 
-        print("Formulario enviado con éxito");
+        // Guardar respuestas
+        final preguntasQuery = where.eq('proyectoId', proyectId);
+        await questionCollection!.updateOne(
+            preguntasQuery,
+            modify.push('respuestas',
+                {'usuarioEmail': email, 'respuestas': respuestas}));
+
+        print("Formulario y respuestas enviados con éxito");
         return true;
       } catch (e) {
-        print("El error fue: $e");
+        print("Error al enviar formulario y respuestas: $e");
         return false;
       }
     });

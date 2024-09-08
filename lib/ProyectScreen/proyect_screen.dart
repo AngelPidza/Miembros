@@ -15,80 +15,69 @@ class ProyectScreen extends StatefulWidget {
 
 class ProyectScreenState extends State<ProyectScreen> {
   // Define los controladores para cada campo
-  final TextEditingController _question1Controller = TextEditingController();
-  final TextEditingController _question2Controller = TextEditingController();
-  final TextEditingController _question3Controller = TextEditingController();
-
+  late List<TextEditingController> _questionControllers;
   final _formKey = GlobalKey<FormState>();
   double _progress = 0.0;
+  late Future<Map<String, dynamic>> _projectDataFuture;
+  bool _mounted = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _projectDataFuture = _loadProjectData();
+    _questionControllers = [];
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _questionControllers) {
+      controller.dispose();
+    }
+    _mounted = false;
+    super.dispose();
+  }
 
   // Método para calcular el progreso
   void _updateProgress() {
     setState(() {
-      int filledFields = 0;
-      if (_question1Controller.text.isNotEmpty) filledFields++;
-      if (_question2Controller.text.isNotEmpty) filledFields++;
-      if (_question3Controller.text.isNotEmpty) filledFields++;
-
-      _progress = filledFields / 3; // Progreso basado en 3 preguntas
+      int filledFields = _questionControllers
+          .where((controller) => controller.text.isNotEmpty)
+          .length;
+      _progress = filledFields / _questionControllers.length;
     });
   }
 
   // Método para enviar la información
   void _submitForm() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('isAdmin') ?? false == true) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('No puedes enviar el formulario, eres administrador')),
-      );
-      Navigator.maybePop(context);
-    } else if (_formKey.currentState!.validate()) {
-      try {
-        if (prefs.getBool('isLoggedIn') ?? false == true) {
-          prefs.getString('email');
-          if (kDebugMode) {
-            print(
-                "El getBool(isLoggedIn) es verdadero y el getStr(email) es: ${prefs.getString('email')}");
-          }
-          String email = prefs.getString('email')!;
-          int id = widget.idProyect;
-          bool success = await MongoDataBase.submitForm(email, id);
-          if (success) {
-            if (kDebugMode) {
-              print('Formulario enviado correctamente');
-            }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Formulario enviado correctamente')),
-              );
-              Navigator.pop(context);
-            }
-          } else {
-            if (kDebugMode) {
-              print('Error al enviar el formulario');
-            }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Error al enviar el formulario')),
-              );
-            }
-          }
-        } else {
-          if (kDebugMode) {
-            print("El getBool(isLoggedIn) es falso");
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No iniciaste sesion')),
-          );
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error al enviar el formulario: $e');
-        }
+    if (_formKey.currentState!.validate()) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? email = prefs.getString('email');
+      if (email == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró el email del usuario')),
+        );
+        return;
+      }
+
+      List<Map<String, dynamic>> respuestas = [];
+      for (int i = 0; i < _questionControllers.length; i++) {
+        respuestas.add({
+          'preguntaId': i + 1,
+          'respuesta': _questionControllers[i].text,
+        });
+      }
+
+      bool success = await MongoDataBase.submitFormWithAnswers(
+          email, widget.idProyect, respuestas);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Respuestas enviadas correctamente')),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar las respuestas')),
+        );
       }
     }
   }
@@ -96,17 +85,11 @@ class ProyectScreenState extends State<ProyectScreen> {
   // Método para cancelar la información
   void _cancelForm() {
     _formKey.currentState?.reset();
-    _question1Controller.clear();
-    _question2Controller.clear();
-    _question3Controller.clear();
     _updateProgress();
   }
 
   // Método para borrar la información
   void _clearForm() {
-    _question1Controller.clear();
-    _question2Controller.clear();
-    _question3Controller.clear();
     _updateProgress();
   }
 
@@ -115,21 +98,6 @@ class ProyectScreenState extends State<ProyectScreen> {
   var colorSubtitleCard = AppColors.cardColor;
   var colorBackgroundCard = AppColors.backgroundColor;
   var colorIconCard = AppColors.onlyColor;
-
-  late Future<Map<String, dynamic>> _projectDataFuture;
-  bool _mounted = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _projectDataFuture = _loadProjectData();
-  }
-
-  @override
-  void dispose() {
-    _mounted = false;
-    super.dispose();
-  }
 
   Future<Map<String, dynamic>> _loadProjectData() async {
     try {
@@ -187,121 +155,116 @@ class ProyectScreenState extends State<ProyectScreen> {
           }
 
           final projectData = snapshot.data!;
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoCard('Título', projectData['Nombre'], Icons.title),
-                  _buildInfoCard('Área', projectData['Área'], Icons.category),
-                  _buildInfoCard(
-                      'Tipo de Aplicación',
-                      projectData['Tipo de Aplicación'],
-                      Icons.app_settings_alt),
-                  _buildInfoCard(
-                      'Estado', projectData['Estado'], Icons.info_outline),
-                  _buildInfoCard('Tiempo de Desarrollo',
-                      projectData['Tiempo de Desarrollo'], Icons.access_time),
-                  _buildExpandableCard('Descripción',
-                      projectData['Descripción'], Icons.description),
-                  _buildExpandableCard(
-                      'Objetivos', projectData['Objetivos'], Icons.flag),
-                  _buildExpandableCard(
-                      'Especialidades Requeridas',
-                      projectData['Especialidades Requeridas'],
-                      Icons.psychology),
-                  const SizedBox(height: 120),
-                  // Formulario de Ingreso de Proyectos
-                  const Center(
-                    child: Text(
-                      'Formulario de Ingreso de Proyectos',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.backgroundColor,
-                        fontFamily: 'nuevo',
+          final preguntas = projectData['Preguntas'] as List<dynamic>;
+
+          if (_questionControllers.isEmpty) {
+            _questionControllers =
+                List.generate(preguntas.length, (_) => TextEditingController());
+          }
+
+          return Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoCard(
+                        'Título', projectData['Nombre'], Icons.title),
+                    _buildInfoCard('Área', projectData['Área'], Icons.category),
+                    _buildInfoCard(
+                        'Tipo de Aplicación',
+                        projectData['Tipo de Aplicación'],
+                        Icons.app_settings_alt),
+                    _buildInfoCard(
+                        'Estado', projectData['Estado'], Icons.info_outline),
+                    _buildInfoCard('Tiempo de Desarrollo',
+                        projectData['Tiempo de Desarrollo'], Icons.access_time),
+                    _buildExpandableCard('Descripción',
+                        projectData['Descripción'], Icons.description),
+                    _buildExpandableCard(
+                        'Objetivos', projectData['Objetivos'], Icons.flag),
+                    _buildExpandableCard(
+                        'Especialidades Requeridas',
+                        projectData['Especialidades Requeridas'],
+                        Icons.psychology),
+                    const SizedBox(height: 120),
+                    // Formulario de Ingreso de Proyectos
+                    const Center(
+                      child: Text(
+                        'Formulario de Ingreso de Proyectos',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.backgroundColor,
+                          fontFamily: 'nuevo',
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(
-                    value: _progress,
-                    backgroundColor: AppColors.cardColor,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                        AppColors.onlyColor),
-                  ),
-                  const SizedBox(height: 20),
-                  Form(
-                    key: _formKey,
-                    onChanged: _updateProgress,
-                    child: Column(
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(
+                      value: _progress,
+                      backgroundColor: AppColors.cardColor,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.onlyColor),
+                    ),
+                    const SizedBox(height: 20),
+                    ...preguntas.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      var pregunta = entry.value;
+                      return _buildQuestionCard(
+                        'Pregunta ${index + 1}',
+                        pregunta['texto'],
+                        Icons.question_answer,
+                        _questionControllers[index],
+                      );
+                    }),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildQuestionCard(
-                          'Pregunta 1',
-                          '¿Cuál es el nombre del proyecto?',
-                          Icons.question_answer,
-                          _question1Controller,
+                        ElevatedButton(
+                          onPressed: _cancelForm,
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: AppColors.onlyColor,
+                            backgroundColor: AppColors.backgroundColor,
+                          ),
+                          child: const Text('Cancelar'),
                         ),
-                        _buildQuestionCard(
-                          'Pregunta 2',
-                          '¿Cuál es el área principal del proyecto?',
-                          Icons.question_answer,
-                          _question2Controller,
-                        ),
-                        _buildQuestionCard(
-                          'Pregunta 3',
-                          '¿Cuánto tiempo tomará el desarrollo?',
-                          Icons.question_answer,
-                          _question3Controller,
+                        const Spacer(),
+                        ElevatedButton(
+                          onPressed: _clearForm,
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: AppColors.onlyColor,
+                            backgroundColor: AppColors.backgroundColor,
+                          ),
+                          child: const Text('Borrar'),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton(
-                        onPressed: _cancelForm,
+                    const SizedBox(height: 20),
+                    Center(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.add_circle_outline),
+                        label: const Text('Seleccionar Proyecto'),
                         style: ElevatedButton.styleFrom(
                           foregroundColor: AppColors.onlyColor,
                           backgroundColor: AppColors.backgroundColor,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 15),
+                          textStyle: const TextStyle(
+                              fontFamily: 'nuevo', fontWeight: FontWeight.w600),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
                         ),
-                        child: const Text('Cancelar'),
+                        onPressed: () {
+                          _submitForm();
+                        },
                       ),
-                      const Spacer(),
-                      ElevatedButton(
-                        onPressed: _clearForm,
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: AppColors.onlyColor,
-                          backgroundColor: AppColors.backgroundColor,
-                        ),
-                        child: const Text('Borrar'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.add_circle_outline),
-                      label: const Text('Seleccionar Proyecto'),
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: AppColors.onlyColor,
-                        backgroundColor: AppColors.backgroundColor,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 15),
-                        textStyle: const TextStyle(
-                            fontFamily: 'nuevo', fontWeight: FontWeight.w600),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                      ),
-                      onPressed: () {
-                        _submitForm();
-                      },
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -372,50 +335,83 @@ class ProyectScreenState extends State<ProyectScreen> {
     );
   }
 
-  Widget _buildQuestionCard(String title, String hint, IconData icon,
+  Widget _buildQuestionCard(String title, String question, IconData icon,
       TextEditingController controller) {
     return Card(
-      color: colorBackgroundCard,
+      color: AppColors.backgroundColor,
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: Icon(icon, color: colorIconCard),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontFamily: 'nuevo',
-            fontWeight: FontWeight.w700,
-            color: colorTitleCard,
-          ),
-        ),
-        subtitle: TextFormField(
-          controller: controller,
-          style: const TextStyle(
-            fontFamily: 'nuevo',
-            fontWeight: FontWeight.w400,
-            color: AppColors.secondaryColor,
-          ),
-          decoration: InputDecoration(
-            errorStyle: const TextStyle(
-              fontFamily: 'nuevo',
-              color: AppColors.errorColor,
-              fontWeight: FontWeight.w700,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: AppColors.onlyColor),
+                SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: 'nuevo',
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onlyColor,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
-            hintText: hint,
-            hintStyle: TextStyle(
-              fontFamily: 'nuevo',
-              color: colorSubtitleCard,
+            SizedBox(height: 8),
+            Text(
+              question,
+              style: TextStyle(
+                fontFamily: 'nuevo',
+                fontWeight: FontWeight.w400,
+                color: AppColors.secondaryColor,
+              ),
             ),
-            border: InputBorder.none,
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Por favor, completa esta pregunta';
-            }
-            return null;
-          },
-          onChanged: (value) => _updateProgress(),
+            SizedBox(height: 16),
+            TextFormField(
+              controller: controller,
+              style: TextStyle(
+                fontFamily: 'nuevo',
+                color: AppColors.onlyColor,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Escribe tu respuesta aquí',
+                hintStyle: TextStyle(color: AppColors.cardColor),
+                filled: true,
+                fillColor: AppColors.backgroundColor.withOpacity(0.1),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.onlyColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: AppColors.onlyColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                      BorderSide(color: AppColors.primaryColor, width: 2),
+                ),
+              ),
+              maxLines: 3,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Por favor, responde esta pregunta';
+                }
+                return null;
+              },
+              onChanged: (value) {
+                print('Texto cambiado: $value');
+                _updateProgress();
+              },
+            )
+          ],
         ),
       ),
     );
