@@ -42,22 +42,44 @@ class BodyState extends State<Body> {
   }
 
   Future<Map<String, dynamic>> _loadData() async {
-    SharedPreferences pref = await SharedPreferences.getInstance();
-    final admin = pref.getBool('isAdmin') ?? false;
-    if (admin == true) {
-      pref.setBool('isLoggedIn', true);
-      setState(() {
-        isAdmin = admin;
-      });
+    try {
+      SharedPreferences pref = await SharedPreferences.getInstance();
+      final admin = pref.getBool('isAdmin') ?? false;
+      if (admin == true) {
+        pref.setBool('isLoggedIn', true);
+        setState(() {
+          isAdmin = admin;
+        });
+      } else {
+        setState(() {
+          isAdmin = false;
+        });
+      }
+      final login = pref.getBool('isLoggedIn') ?? false;
+      print("Is admin: $isAdmin");
+      print("Is logged in: $login");
+
+      final projectsData = isAdmin
+          ? await MongoDataBase.getAdminData()
+          : await MongoDataBase.getData();
+      print("Projects data length: ${projectsData.length}");
+
+      final canSelectMore = await _userCanSelectProject();
+      print("Can select more: $canSelectMore");
+
+      return {
+        'login': login,
+        'projects': projectsData,
+        'canSelectMore': canSelectMore,
+      };
+    } catch (e) {
+      print("Error in _loadData: $e");
+      return {
+        'login': false,
+        'projects': [],
+        'canSelectMore': false,
+      };
     }
-    final login = pref.getBool('isLoggedIn') ?? false;
-    final projectsData = await MongoDataBase.getData();
-    final canSelectMore = await _userCanSelectProject();
-    return {
-      'login': login,
-      'projects': projectsData,
-      'canSelectMore': canSelectMore,
-    };
   }
 
   Future<void> refreshData() async {
@@ -203,12 +225,34 @@ class BodyState extends State<Body> {
                           color: AppColors.backgroundColor,
                           fontWeight: FontWeight.w700),
                     ),
-                    subtitle: Text(
-                      data[index]['Descripción'] ?? 'No description',
-                      style: const TextStyle(
-                        fontFamily: 'nuevo',
-                        color: AppColors.cardColor,
-                      ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          data[index]['Descripción'] ?? 'No description',
+                          style: const TextStyle(
+                            fontFamily: 'nuevo',
+                            color: AppColors.cardColor,
+                          ),
+                        ),
+                        // Dentro del ListTile
+                        if (isAdmin) ...[
+                          const SizedBox(height: 8),
+                          const Text('Participantes:',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          if (data[index]['participantesInfo'] != null)
+                            ...(data[index]['participantesInfo']
+                                    as List<dynamic>)
+                                .map<Widget>((participante) => Text(
+                                    '${participante['name']} (${participante['username']}) - ${participante['phone']}'))
+                                .toList(),
+                          Text(
+                              'Especialidades: ${data[index]['Especialidades Requeridas']}'),
+                          Text('Estado: ${data[index]['Estado']}'),
+                          Text(
+                              'Tiempo de Desarrollo: ${data[index]['Tiempo de Desarrollo']}'),
+                        ],
+                      ],
                     ),
                     trailing: !isAdmin
                         ? Text(data[index]['Tipo de Aplicación'] ?? 'hola',

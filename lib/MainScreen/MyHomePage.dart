@@ -94,6 +94,7 @@ class _MyhomepageState extends State<Myhomepage> {
           //El (_userImageData), (userEmail) y (isLoggedIn) es una 'variable de estado'
           isLoggedIn = loggedIn;
           userEmail = userName ?? 'usuario';
+          isAdmin = false;
           _userImageData = imageData;
         });
       } catch (e) {
@@ -339,7 +340,7 @@ class _MyhomepageState extends State<Myhomepage> {
       TextEditingController()
     ];
     final projectDataControllers =
-        List.generate(7, (_) => TextEditingController());
+        List.generate(9, (_) => TextEditingController());
 
     showModalBottomSheet(
       context: context,
@@ -388,7 +389,7 @@ class _MyhomepageState extends State<Myhomepage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Campos del proyecto
-                                ...List.generate(7, (index) {
+                                ...List.generate(9, (index) {
                                   final labels = [
                                     'Nombre',
                                     'Tipo de Aplicación',
@@ -422,12 +423,17 @@ class _MyhomepageState extends State<Myhomepage> {
                                         if (value == null || value.isEmpty) {
                                           return 'Este campo es obligatorio';
                                         }
-                                        // Validaciones específicas, como tiempo de desarrollo
+                                        // Validaciones específicas
                                         if (index == 6) {
                                           final regExp = RegExp(
                                               r'^\d+\s+(semana|semanas)$');
                                           if (!regExp.hasMatch(value)) {
                                             return 'Ingrese un tiempo válido (ej. 10 semanas)';
+                                          }
+                                        }
+                                        if (index == 7) {
+                                          if (int.tryParse(value) == null) {
+                                            return 'Ingrese un número válido de integrantes';
                                           }
                                         }
                                         return null;
@@ -455,6 +461,10 @@ class _MyhomepageState extends State<Myhomepage> {
                                           Expanded(
                                             child: TextFormField(
                                               controller: controller,
+                                              style: const TextStyle(
+                                                fontFamily: 'nuevo',
+                                                color: AppColors.onlyColor,
+                                              ),
                                               decoration: InputDecoration(
                                                 labelText:
                                                     'Pregunta ${idx + 1}',
@@ -467,6 +477,13 @@ class _MyhomepageState extends State<Myhomepage> {
                                                 border:
                                                     const OutlineInputBorder(),
                                               ),
+                                              validator: (value) {
+                                                if (value == null ||
+                                                    value.isEmpty) {
+                                                  return 'La pregunta no puede estar vacía';
+                                                }
+                                                return null;
+                                              },
                                             ),
                                           ),
                                           IconButton(
@@ -523,25 +540,47 @@ class _MyhomepageState extends State<Myhomepage> {
                               foregroundColor: AppColors.onlyColor,
                               backgroundColor: AppColors.primaryColor,
                             ),
-                            onPressed: () {
+                            onPressed: () async {
                               if (formKey.currentState!.validate()) {
-                                if (questionControllers.length < 3) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Debes añadir al menos 3 preguntas personalizadas.')),
-                                  );
+                                List<String> questions = questionControllers
+                                    .map((controller) => controller.text)
+                                    .where((text) => text.isNotEmpty)
+                                    .toList();
+
+                                if (questions.length < 3) {
+                                  // Mostrar error en el formulario en lugar de usar ScaffoldMessenger
+                                  formKey.currentState!.validate();
                                 } else {
-                                  List<String> projectData =
-                                      projectDataControllers
-                                          .map((controller) => controller.text)
-                                          .toList();
-                                  List<String> questions = questionControllers
-                                      .map((controller) => controller.text)
-                                      .toList();
-                                  print('Datos del proyecto: $projectData');
-                                  print('Preguntas personalizadas: $questions');
-                                  Navigator.of(context).pop();
+                                  Map<String, dynamic> projectData = {
+                                    'Nombre': projectDataControllers[0].text,
+                                    'Tipo de Aplicación':
+                                        projectDataControllers[1].text,
+                                    'Área': projectDataControllers[2].text,
+                                    'Descripción':
+                                        projectDataControllers[3].text,
+                                    'Objetivos': projectDataControllers[4].text,
+                                    'Estado': projectDataControllers[5].text,
+                                    'Tiempo de Desarrollo':
+                                        projectDataControllers[6].text,
+                                    'Integrantes':
+                                        projectDataControllers[7].text,
+                                    'Especialidades Requeridas':
+                                        projectDataControllers[8].text,
+                                  };
+
+                                  bool success = await MongoDataBase
+                                      .createProjectWithQuestions(
+                                          projectData, questions);
+
+                                  if (success) {
+                                    bodyKey.currentState!.refreshData();
+                                    _checkLoginStatus();
+                                    Navigator.of(context).pop();
+                                    // Aquí puedes añadir lógica para refrescar la lista de proyectos si es necesario
+                                  } else {
+                                    // Mostrar error en el formulario
+                                    formKey.currentState!.validate();
+                                  }
                                 }
                               }
                             },

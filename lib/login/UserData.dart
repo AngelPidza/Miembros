@@ -123,14 +123,16 @@ class UserDataBodyState extends State<UserDataBody> {
         'userName': _userNameController.text,
         'phone': _phoneController.text,
         'birthdate': fechaNacimiento.toIso8601String(),
-        'now': fechaCreacion.toIso8601String()
+        'now': fechaCreacion.toIso8601String(),
+        'gender': _selectedGender,
       };
       if (kDebugMode) {
         print("user_name: ${_userNameController.text} \n"
             "name: ${_nameController.text} \n"
             "phone: ${_phoneController.text} \n"
             "fecha de nacimiento: ${fechaNacimiento.toIso8601String()} \n"
-            "fecha de creación: ${fechaCreacion.toIso8601String()}");
+            "fecha de creación: ${fechaCreacion.toIso8601String()} \n"
+            "genero: $_selectedGender \n");
       }
       bool success;
       success = await MongoDataBase.insertDataRegister(_image, data);

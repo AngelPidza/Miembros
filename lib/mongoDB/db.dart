@@ -18,6 +18,7 @@ class MongoDataBase {
   static DbCollection? userCollection;
   static DbCollection? blurryCollection;
   static DbCollection? proyectCollection;
+  static DbCollection? questionCollection;
   static String?
       email_; //No estoy seguro si poner esto aca o en el SharedPreferences,
   //por lo que un usuario puede tener maximo 5 cuentas
@@ -62,7 +63,9 @@ class MongoDataBase {
       userCollection = db!.collection(dotenv.env['USER_COLLECTION']!);
       blurryCollection = db!.collection(dotenv.env['BLURRY_COLLECTION']!);
       proyectCollection = db!.collection(dotenv.env['PROYECT_COLLECTION']!);
+      questionCollection = db!.collection(dotenv.env['QUESTION_COLLECTION']!);
 
+      await proyectCollection!.createIndex(keys: {'ID': 1}, unique: true);
       if (userCollection != null) {
         print('Collection initialized successfully.');
       } else {
@@ -246,7 +249,8 @@ class MongoDataBase {
           'userName': data["userName"],
           'phone': data["phone"],
           'birthdate': data["birthdate"],
-          'now': data["now"]
+          'now': data["now"],
+          'gender': data["gender"],
         };
         if (kDebugMode) {
           print("Buscando usuario con el userName: ${data['userName']}");
@@ -539,5 +543,139 @@ class MongoDataBase {
         }
       },
     );
+  }
+
+  static Future<List<Map<String, dynamic>>> getAdminData() async {
+    return execute((db) async {
+      try {
+        // Primero, obtenemos todos los proyectos
+        var projects = await proyectCollection!.find().toList();
+
+        // Luego, para cada proyecto, buscamos la información de los participantes
+        var result = await Future.wait(projects.map((project) async {
+          var participantEmails = project['Participantes'] as List? ?? [];
+          var participantInfos = await userCollection!
+              .find(where.oneFrom('email', participantEmails))
+              .toList();
+
+          // Mapeamos la información de los participantes al formato deseado
+          var mappedParticipants = participantInfos
+              .map((p) => {
+                    'username': p['userName'],
+                    'name': p['name'],
+                    'phone': p['phone'],
+                    'email': p['email'],
+                    'birthdate': p['birthdate'],
+                    'gender': p['gender'],
+                  })
+              .toList();
+
+          // Añadimos la información de los participantes al proyecto
+          project['participantesInfo'] = mappedParticipants;
+          return project;
+        }));
+
+        print("Número de proyectos obtenidos: ${result.length}");
+
+        for (var project in result) {
+          print("Proyecto ID: ${project['ID']}");
+          print(
+              "Número de participantes: ${project['participantesInfo'].length}");
+        }
+
+        return result;
+      } catch (e) {
+        print('Error al obtener datos de proyectos para admin: $e');
+        return [];
+      }
+    });
+  }
+
+  static Future<int> generateSequentialId() async {
+    return execute((db) async {
+      try {
+        // Buscar el proyecto con el ID más alto
+        var highestProject = await proyectCollection!
+            .find(where.sortBy('ID', descending: true))
+            .toList();
+
+        // Si no hay proyectos, empezar desde 1
+        if (highestProject.isEmpty) {
+          return 1;
+        }
+
+        // Tomar el ID más alto y sumarle 1
+        int highestId = highestProject.first['ID'];
+        return highestId + 1;
+      } catch (e) {
+        print('Error al generar ID secuencial: $e');
+        // En caso de error, generar un ID basado en el timestamp actual
+        return DateTime.now().millisecondsSinceEpoch;
+      }
+    });
+  }
+
+  static Future<bool> createProjectWithQuestions(
+      Map<String, dynamic> projectData, List<String> questions) async {
+    return execute((db) async {
+      if (questions.length < 3) {
+        throw Exception(
+            'Se requieren al menos 3 preguntas para crear un proyecto.');
+      }
+
+      try {
+        // Buscar el proyecto con el ID más alto
+        var highestProject = await proyectCollection!
+            .find(where.sortBy('ID', descending: true))
+            .toList();
+
+        // Tomar el ID más alto y sumarle 1
+        int highestId = highestProject.first['ID'];
+        // Generar el nuevo ID
+        int newId = highestId + 1;
+
+        // Crear el proyecto
+        var projectDoc = {
+          '_id': ObjectId(),
+          'ID': newId,
+          'Nombre': projectData['Nombre'],
+          'Tipo de Aplicación': projectData['Tipo de Aplicación'],
+          'Área': projectData['Área'],
+          'Descripción': projectData['Descripción'],
+          'Objetivos': projectData['Objetivos'],
+          'Estado': projectData['Estado'],
+          'Tiempo de Desarrollo': projectData['Tiempo de Desarrollo'],
+          'Integrantes': int.parse(projectData['Integrantes']),
+          'Especialidades Requeridas': projectData['Especialidades Requeridas'],
+          'Dispuestos': 0,
+          'Participantes': [],
+        };
+
+        var projectResult = await proyectCollection!.insertOne(projectDoc);
+
+        // Crear las preguntas
+        var questionsDoc = {
+          'proyectoId': newId,
+          'preguntas': questions
+              .asMap()
+              .entries
+              .map((entry) =>
+                  {'id': entry.key + 1, 'texto': entry.value, 'tipo': 'texto'})
+              .toList(),
+          'respuestas': []
+        };
+
+        var questionResult = await questionCollection!.insertOne(questionsDoc);
+
+        // Actualizar el proyecto con la referencia a las preguntas
+        await proyectCollection!.updateOne(where.eq('_id', projectResult.id),
+            modify.set('preguntasId', questionResult.id));
+
+        return true;
+      } catch (e) {
+        print('Error al crear proyecto con preguntas: $e');
+        return false;
+      }
+    });
   }
 }
