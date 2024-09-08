@@ -566,17 +566,17 @@ class MongoDataBase {
   static Future<List<Map<String, dynamic>>> getAdminData() async {
     return execute((db) async {
       try {
-        // Primero, obtenemos todos los proyectos
+        // Obtenemos todos los proyectos
         var projects = await proyectCollection!.find().toList();
 
-        // Luego, para cada proyecto, buscamos la información de los participantes
+        // Para cada proyecto, buscamos la información de los participantes y las preguntas/respuestas
         var result = await Future.wait(projects.map((project) async {
           var participantEmails = project['Participantes'] as List? ?? [];
           var participantInfos = await userCollection!
               .find(where.oneFrom('email', participantEmails))
               .toList();
 
-          // Mapeamos la información de los participantes al formato deseado
+          // Mapeamos la información de los participantes
           var mappedParticipants = participantInfos
               .map((p) => {
                     'username': p['userName'],
@@ -588,8 +588,14 @@ class MongoDataBase {
                   })
               .toList();
 
-          // Añadimos la información de los participantes al proyecto
+          // Buscamos las preguntas y respuestas asociadas al proyecto
+          var preguntasInfo = await questionCollection!
+              .findOne(where.eq('proyectoId', project['ID']));
+
+          // Añadimos la información al proyecto
           project['participantesInfo'] = mappedParticipants;
+          project['preguntasInfo'] = preguntasInfo;
+
           return project;
         }));
 
@@ -599,6 +605,14 @@ class MongoDataBase {
           print("Proyecto ID: ${project['ID']}");
           print(
               "Número de participantes: ${project['participantesInfo'].length}");
+          if (project['preguntasInfo'] != null) {
+            print(
+                "Número de preguntas: ${project['preguntasInfo']['preguntas'].length}");
+            print(
+                "Número de respuestas: ${project['preguntasInfo']['respuestas'].length}");
+          } else {
+            print("No hay información de preguntas para este proyecto");
+          }
         }
 
         return result;

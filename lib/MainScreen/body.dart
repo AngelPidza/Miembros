@@ -236,6 +236,7 @@ class BodyState extends State<Body> {
                           ),
                         ),
                         // Dentro del ListTile
+                        // Dentro del método build de BodyState, en la sección donde se construye el ListTile para cada proyecto
                         if (isAdmin) ...[
                           const SizedBox(height: 8),
                           const Text('Participantes:',
@@ -251,6 +252,40 @@ class BodyState extends State<Body> {
                           Text('Estado: ${data[index]['Estado']}'),
                           Text(
                               'Tiempo de Desarrollo: ${data[index]['Tiempo de Desarrollo']}'),
+
+                          // Añadir esta sección para mostrar las preguntas y respuestas
+                          if (data[index]['preguntasInfo'] != null) ...[
+                            const SizedBox(height: 8),
+                            const Text('Preguntas y Respuestas:',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            ...(data[index]['preguntasInfo']['preguntas']
+                                    as List<dynamic>)
+                                .map<Widget>((pregunta) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Pregunta: ${pregunta['texto']}',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w500)),
+                                  ...(data[index]['preguntasInfo']['respuestas']
+                                          as List<dynamic>)
+                                      .map<Widget>((respuesta) {
+                                    var respuestaPregunta =
+                                        respuesta['respuestas'].firstWhere(
+                                      (r) => r['preguntaId'] == pregunta['id'],
+                                      orElse: () => null,
+                                    );
+                                    if (respuestaPregunta != null) {
+                                      return Text(
+                                          '  Respuesta de ${respuesta['usuarioEmail']}: ${respuestaPregunta['respuesta']}');
+                                    }
+                                    return Container();
+                                  }).toList(),
+                                  SizedBox(height: 4),
+                                ],
+                              );
+                            }),
+                          ],
                         ],
                       ],
                     ),
